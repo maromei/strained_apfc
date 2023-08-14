@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, Path(__file__).parent.parent.parent.parent / "src")
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
 
 project = "strained_apfc"
 copyright = "2023, maromei"
@@ -16,10 +16,29 @@ extensions = [
     "breathe",  # for doxygen doc
     "sphinx.ext.mathjax",  # display math in docstrings
     "sphinx.ext.napoleon",  # Numpy docstrings
+    "sphinxcontrib.bibtex",  # Bibliography
+    "sphinx.ext.todo",  # Todo
 ]
 
 templates_path = ["_templates"]
 exclude_patterns = []
+
+myst_enable_extensions = ["dollarmath", "amsmath"]
+
+##############
+### BIBTEX ###
+##############
+
+bibtex_bibfiles = ["refs.bib"]
+bibtex_default_style = "alpha"
+bibtex_reference_style = "super"
+
+#############
+### TODOS ###
+#############
+
+todo_include_todos = True
+todo_link_only = True
 
 #####################
 ### BREATHE SETUP ###
