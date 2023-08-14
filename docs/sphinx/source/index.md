@@ -1,5 +1,3 @@
-# Strained APFC
-
 ```{include} ../../../README.md
 ```
 
