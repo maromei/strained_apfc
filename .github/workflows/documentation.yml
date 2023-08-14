@@ -1,0 +1,28 @@
+name: Docs
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+      - name: Install dependencies
+        run: |
+          pip install sphinx furo myst_parser breathe sphinxcontrib-bibtex
+      - name: Sphinx build
+        run: |
+          sphinx-build docs/sphinx/source build
+      - name: Doxygen Build
+        uses: mattnotmitt/doxygen-action@v1.9.4
+        with:
+          working-directory: 'docs/doxygen'
+          doxyfile-path: 'Doxyfile'
+          enable-latex: 'true'
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+        with:
+          publish_branch: gh-pages
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/
+          force_orphan: true
