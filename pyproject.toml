@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "strained_apfc"
+description = ""
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = []
+authors = [
+  { name = "maromei", email = "maromei@proton.me" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = []
+dynamic = ["version"]
+
+[project.urls]
+Documentation = "https://github.com/maromei/strained_apf#readme"
+Issues = "https://github.com/maromei/strained_apf/issues"
+Source = "https://github.com/maromei/strained_apf"
+
+[tool.hatch.version]
+path = "src/__about__.py"
+
+#####################
+### ENV - DEFAULT ###
+#####################
+
+[tool.hatch.envs.default.scripts]
+
+[tool.hatch.envs.default.env-vars]
+
+###################
+### ENV - BUILD ###
+###################
+
+[tool.hatch.envs.build]
+dependencies = [
+  "GitPython"
+]
+
+[tool.hatch.envs.build.scripts]
+write_version = "python scripts/write_version_to_file.py"
+
+###################
+### ENV - STYLE ###
+###################
+
+[tool.hatch.envs.style]
+skip-install = true
+detached = true
+dependencies = [
+  "pre-commit",
+  "black"
+]
+
+[tool.hatch.envs.style.scripts]
+precommit-install = "pre-commit install"
