@@ -31,6 +31,8 @@ path = "src/__about__.py"
 ### ENV - DEFAULT ###
 #####################
 
+[tool.hatch.envs.default]
+
 [tool.hatch.envs.default.scripts]
 
 [tool.hatch.envs.default.env-vars]
@@ -46,6 +48,24 @@ dependencies = [
 
 [tool.hatch.envs.build.scripts]
 write_version = "python scripts/write_version_to_file.py"
+
+##################
+### ENV - DOCS ###
+##################
+
+[tool.hatch.envs.docs]
+extra_dependencies = [
+  "sphinx",
+  "sphinx-autobuild",
+  "myst-parser",
+  "furo",
+  "breathe"
+]
+
+[tool.hatch.envs.docs.scripts]
+serve = "sphinx-autobuild docs/source docs/build/html"
+clean = "cd docs/ && make clean"
+doxygen = "cd docs/doxygen && doxygen"
 
 ###################
 ### ENV - STYLE ###
