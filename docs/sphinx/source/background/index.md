@@ -1,8 +1,9 @@
-# Strained APFC
+# Background
 
 ```{toctree}
 :maxdepth: 2
 :caption: 'Contents:'
 
-background/index
+bibliography
 ```
+
