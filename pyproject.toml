@@ -48,6 +48,10 @@ dependencies = [
 
 [tool.hatch.envs.build.scripts]
 write_version = "python scripts/write_version_to_file.py"
+image = "docker build . -t strained_apfc:latest --build-arg BOOST_VERSION=$BOOST_VERSION"
+
+[tool.hatch.envs.build.env-vars]
+BOOST_VERSION = "1.83.0"
 
 ##################
 ### ENV - DOCS ###
