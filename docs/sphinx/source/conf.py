@@ -24,6 +24,7 @@ templates_path = ["_templates"]
 exclude_patterns = []
 
 myst_enable_extensions = ["dollarmath", "amsmath"]
+numfig = True  # enables us to refer to tables and figures by name via :numfig:
 
 ##############
 ### BIBTEX ###
