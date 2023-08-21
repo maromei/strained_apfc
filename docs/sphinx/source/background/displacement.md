@@ -1,4 +1,6 @@
-# Density
+# Displacement
+
+## Density
 
 The density is described by
 
@@ -9,16 +11,16 @@ $$
     \eta_m(\boldsymbol{r}, t)
     \exp(i \boldsymbol{G}_m \cdot \boldsymbol{r}) + \text{c.c.}
 \end{equation}
-$$
+$$ (eq:density)
 
 Here it is exploited that the inverse crystal direction can be expressed
-by the complex conjugate (c.c.). An example of this can be seen in figure
-{numref}`test`
+by the complex conjugate (c.c.). An example of this can be seen in
+{numref}`hexagonal_lattice`
 
 ```{figure} images/hexagonal_lattice.png
 ---
 class: with-border
-name: test
+name: hexagonal_lattice
 ---
 
 The crystal structure for a triangular lattice in both real and reciprocal space is
@@ -150,56 +152,10 @@ The answer is probably there.
 ```
 
 ```{todo}
-**Question** Not sure if I interpreted the Einstein Summation notation for
-$\alpha$ correctly.
+**Question**: Did I interpreted the Einstein Summation notation for
+$\alpha$ correctly?
 ```
 
 ```{todo}
 Integration to get the actual values of $\phi$ and $\alpha$.
-```
-
-## Stress and strain
-
-(Entirely based on {cite:t}`apfc_plastic_motion`. Frequently cited: {cite:t}`separation_estic_plastic_timescales`)
-
-There are 3 main parts:
-
-- $\boldsymbol{\sigma}$ total stress
-- $\sigma_{ij}^n$ stress computed from the amplitude functions
-- $\boldsymbol{\varepsilon}$ smooth strain
-- $\sigma^{\delta}$ Smooth stress ?
-
-```{todo}
-smooth stress right word?
-```
-(total_stress)=
-### Total Stress
-
-Mechanical equilibrium condition:
-
-$$
-\begin{equation}
-    \nabla \boldsymbol{\sigma} = 0
-\end{equation}
-$$
-
-(amplitdue_computed_stress)=
-### Stress from amplitudes
-
-```{todo}
-Stress from amplitudes section
-```
-
-(smooth_strain)=
-### Smooth Strain
-
-```{todo}
-Smooth strain section
-```
-
-(smooth_stress)=
-### Smooth stress
-
-```{todo}
-Smooth stress section
 ```
