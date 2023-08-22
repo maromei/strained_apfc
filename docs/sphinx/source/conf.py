@@ -46,7 +46,7 @@ todo_link_only = True
 #####################
 
 breathe_xml_path = Path(__file__).parent.parent.parent
-breathe_xml_path = breathe_xml_path / "doxygen/xml"
+breathe_xml_path = str(breathe_xml_path / "doxygen/xml")
 
 breathe_projects = {"strained_apfc": str(breathe_xml_path)}
 breathe_default_project = "strained_apfc"
