@@ -7,5 +7,6 @@
 burgers_vector
 helmholtz_decomposition
 airy_stress_function
+levi_civita_symbol
 ```
 

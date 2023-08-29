@@ -144,6 +144,8 @@ $$
 \end{aligned}
 $$
 
+and $\epsilon_{ij}$ is the [Levi-Civita Symbol](levi_civita_symbol)
+
 ```{todo}
 **Question**: What is $\epsilon_{ij}$?
 
