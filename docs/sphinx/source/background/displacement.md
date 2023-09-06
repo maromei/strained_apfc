@@ -64,26 +64,6 @@ $$
 
 "giving a meaning to the phase of the complex amplitudes" {cite:p}`hydrodynamics_apfc`.
 
-```{todo}
-**Question**: When doing calculations with the basic APFC model without any
-stressfields and using complex amplitudes $\eta_m$, we already have information
-in the phase / complex part of the amplitudes.
-
-Now with the displacement $\boldsymbol{u}$ we add additional information to the
-complex part. If we calculate the complex amplitude, then we don't know what
-information of the phase is due to the displacement part, and which is due to
-the previous complex amplitude.
-
-Ideas to resolve:
-
-- Consider just $\eta_m$ in $\overset{\sim}{\eta}_m$ as real. The phase is exclusive to the displacement.
-- If the displacement is given, or known, you could just get this part.
-```
-
-```{todo}
-**Question**: How does a defect actually look like encoded in the displacement?
-```
-
 ### By solving flow equation
 
 (Done in {cite:t}`apfc_plastic_motion`. Additionally cited: {cite:t}`amplitude_eq_interact_composition_stress`)
@@ -145,19 +125,3 @@ $$
 $$
 
 and $\epsilon_{ij}$ is the [Levi-Civita Symbol](levi_civita_symbol)
-
-```{todo}
-**Question**: What is $\epsilon_{ij}$?
-
-The {cite:t}`separation_estic_plastic_timescales` paper is cited repeatedly.
-The answer is probably there.
-```
-
-```{todo}
-**Question**: Did I interpreted the Einstein Summation notation for
-$\alpha$ correctly?
-```
-
-```{todo}
-Integration to get the actual values of $\phi$ and $\alpha$.
-```
