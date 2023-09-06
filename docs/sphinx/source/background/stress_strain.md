@@ -52,19 +52,19 @@ obtain"{cite}`apfc_plastic_motion`
 
 $$
 \begin{equation}
-    \sigma_{ij}^n = \sum\limits_{\boldsymbol{G}_m} \left\{
+    \sigma_{ij}^n = \sum\limits_{m}^M \left\{
         \left[
-            \mathcal{Q}_i \mathcal{G}_m \eta_m
+            \mathcal{Q}_{m, i} \mathcal{G}_m \eta_m
         \right]
         \left[
-            \mathcal{Q}_j^* \eta_{-m}
+            \mathcal{Q}_{m, j}^* \eta^*_{m}
         \right]
         -
         \left[
             \mathcal{G}_m \eta_m
         \right]
         \left[
-            \mathcal{Q}_i^* \mathcal{Q}_j^* \eta_{-m}
+            \mathcal{Q}_{m, i}^* \mathcal{Q}_{m, j}^* \eta^*_{m}
         \right]
     \right\}
 \end{equation}
@@ -74,17 +74,10 @@ with
 
 $$
 \begin{aligned}
-    \mathcal{Q}_i &= \partial_i + \mathbb{i} q_i \\
-    \mathcal{Q}_i^* &= \partial_i - \mathbb{i} q_i \quad \text{(Complex conjugate)}\\
+    \mathcal{Q}_{m, i} &= \partial_i + \mathbb{i} G_m^{(i)} \\
     \mathcal{G}_m &= \nabla^2 + 2 \mathbb{i} \boldsymbol{G}_m \nabla
 \end{aligned}
 $$
-
-```{todo}
-**Question**: What is  $\eta_{-m}$? In paper the sum goes over $\boldsymbol{q}$
-and that part is denoted as $\eta_{-\boldsymbol{q}}$. Probably the complex
-conjugate direction.
-```
 
 (smooth_strain)=
 ## Smooth Strain
