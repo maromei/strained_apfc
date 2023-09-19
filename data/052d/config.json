@@ -11,8 +11,8 @@
     "initEta": 0.15753639490690055,
     "thetaDiv": 1,
     "thetaCount": 1,
-    "numPtsX": 1000,
-    "numPtsY": 1000,
+    "numPtsX": 500,
+    "numPtsY": 500,
     "xlim": 200,
     "keepEtaConst": false,
     "G": [
