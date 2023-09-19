@@ -16,7 +16,11 @@ classifiers = [
   "Programming Language :: Python",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = []
+dependencies = [
+  "numpy",
+  "pandas",
+  "scipy"
+]
 dynamic = ["version"]
 
 [project.urls]
@@ -34,6 +38,7 @@ path = "src/__about__.py"
 [tool.hatch.envs.default]
 
 [tool.hatch.envs.default.scripts]
+fft-sim = "python src/apfc-run-fft.py {args}"
 
 [tool.hatch.envs.default.env-vars]
 
