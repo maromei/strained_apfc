@@ -1,0 +1,56 @@
+{
+    "Bx": 0.988,
+    "dB0": 0.012,
+    "n0": -0.03,
+    "t": 0.5,
+    "v": 0.3333333333333333,
+    "beta": 1.0,
+    "dt": 1.0,
+    "initRadius": 50,
+    "interfaceWidth": 10.0,
+    "initEta": 0.15753639490690055,
+    "thetaDiv": 1,
+    "thetaCount": 1,
+    "numPtsX": 1000,
+    "numPtsY": 1000,
+    "xlim": 200,
+    "keepEtaConst": false,
+    "G": [
+        [
+            -0.8660254037844386,
+            -0.5
+        ],
+        [
+            0.0,
+            1.0
+        ],
+        [
+            0.8660254037844386,
+            -0.5
+        ]
+    ],
+    "numT": 6000,
+    "writeEvery": 600,
+    "eqSteps": 0,
+    "simPath": "",
+    "simType": "base",
+    "vary": false,
+    "varyParam": "Bx",
+    "varyStart": 0.0,
+    "varyEnd": 1.0,
+    "varyAmount": 100,
+    "defects": [
+        {
+            "type": "line",
+            "poisson_ratio": 0.5,
+            "burgers_vector": [
+                -7.25519745694,
+                0
+            ],
+            "offset": [
+                0,
+                0
+            ]
+        }
+    ]
+}
