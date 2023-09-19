@@ -8,11 +8,4 @@ repos:
         # pre-commit's default_language_version, see
         # https://pre-commit.com/#top_level-default_language_version
         language_version: python3.10
-  - repo: local
-    hooks:
-      - id: write_version_to_file
-        name: write_version_to_file
-        entry: hatch run build:write_version
-        language: system
-        types: [python]
-        always_run: true
+
