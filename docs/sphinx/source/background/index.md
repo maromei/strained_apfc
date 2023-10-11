@@ -6,6 +6,7 @@
 
 notation
 energy_functional
+hydropfc
 displacement
 stress_strain
 bibliography

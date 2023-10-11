@@ -22,9 +22,8 @@ $$
 A &= B^x \\
 B &= \Delta B^0 - 2 t n_0 + 3 v n_0^2 \\
 C &= - t + 3 v n_0 \\
-D &= v \\
+D &= v = 1 / 3\\
 E &= (\Delta B^0 + B^x) \frac{n_0^2}{2} - t \frac{n_0^3}{3} + v \frac{n_0^4}{4} \\
-v &= 1 / 3 \\
 \Phi &= 2 \sum\limits_m^M |\eta_m|^2 \\
 \mathcal{G}_m &= \sqrt\beta \nabla^2 + 2 \mathbb{i} \boldsymbol{G}_m \nabla
 \end{aligned}

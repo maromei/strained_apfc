@@ -24,6 +24,11 @@
 | `simPath`        | string     | The directory where the config file lies, and where the output should be created.                                                                           |
 | `simType`        | str        | The type of the simulation. Choices are: "n0", otherwise a basic sim will be done.                                                                          |
 | `defects`        | list[dict] | Contains dictionaries describing the defects with which the amplitudes should be initialized with. See the [Defect Reference](code_defect_reference) below. |
+| `mu_b` | float | dissipation parameter $\mu_B$ in eq. {eq}`eqn:hydro_apfc_flow_v`. Only relevant for hydro apfc. |
+| `mu_s` | float | dissipation parameter $\mu_S$ in eq. {eq}`eqn:hydro_apfc_flow_v`. Only relevant for hydro apfc. |
+| `mu_eta` | float | dissipation parameter $\mu_\eta$ in eq. {eq}`eqn:hydro_apfc_flow_eta_n`. Only relevant for hydro apfc. |
+| `mu_n0` | float | dissipation parameter $\mu_n$ in eq. {eq}`eqn:hydro_apfc_flow_eta_n`. Only relevant for hydro apfc. |
+
 
 (code_defect_reference)=
 ## Defect Reference
