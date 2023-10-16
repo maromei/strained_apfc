@@ -119,3 +119,50 @@ $$
     \right)
 \end{gathered}
 $$
+
+## Numerical Limitations
+
+### Flow of Velocity
+
+A numerical problem of {eq}`eqn:hydro_apfc_flow_v` is having the average
+density field on the left hand side of the equation. Simply dividing by
+$n_0$ causes most summands to have two spatially dependent fields. Under the
+fourier transform a summand like this will result in a convolution of
+frequency dependent fields, which prevents an implicit treatment in the
+numerical scheme using the fourier methods.
+
+This problem can be avoided by choosing the $n_0$ on the left hand side to
+be constant $n_0 \rightarrow n_{0, \text{init}} = \text{const.}$, resulting in:
+
+$$
+\begin{equation}
+    n_{0, \text{init}} \frac{D\mathbf{v}}{Dt} =
+        n_0 \left[
+            \frac{\partial v}{\partial t} +
+            \left( \mathbf{v} \nabla \right) \mathbf{v}
+        \right]
+    = \mathbf{f} + \mu_\text{S} \nabla^2 \mathbf{v} +
+        (\mu_\text{B} - \mu_\text{S}) \nabla \nabla \cdot \mathbf{v}
+\end{equation}
+$$ (eqn:hydro_apfc_flow_v_corrected_n0)
+
+$n_{0, \text{init}}$ will be the value used for $n_0$ on initialization.
+This can be done since the flow equation of $n_0$ is set to conserve its value.
+Additionally, $n_0$ does not vary a lot in the solid phase, even at the defects.
+
+```{todo}
+Reference results for $n_0$ not varying much in the solid phase.
+```
+
+```{todo}
+Is it even true that it limits us to only the solid phase?
+The variation is not too great aournd the initial $n_0$.
+```
+
+This limits the simulation to the domain of the solid phase and additional
+ideas are needed to describe grain growth. An example of such an approach
+is described in the works of {cite:t}`shpfc`.
+
+```{todo}
+shpfc paper reading
+```
