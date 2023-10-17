@@ -223,8 +223,6 @@ class FFTHydroAPFCSim:
         else:
             self.n0 = np.ones(self.xm.shape, dtype=float) * self.init_n0
 
-        self.n0_old = self.n0.copy()
-
     def build_laplace_op(self):
         """
         Builds the laplace operator
@@ -456,10 +454,10 @@ class FFTHydroAPFCSim:
         eta_conj2 = np.conj(self.etas[other_etas[1]])
 
         n = 3.0 * self.D * self.amp_abs_sq_sum(eta_i)
-        n += 3.0 * self.v * self.n0_old**2
-        n -= 2.0 * self.t * self.n0_old
+        n += 3.0 * self.v * self.n0**2
+        n -= 2.0 * self.t * self.n0
         n *= self.etas[eta_i]
-        n += 2.0 * self.C(self.n0_old) * eta_conj1 * eta_conj2
+        n += 2.0 * self.C(self.n0) * eta_conj1 * eta_conj2
 
         self.eta_non_lin_term[eta_i] = n.copy()
 
@@ -689,9 +687,94 @@ class FFTHydroAPFCSim:
 
         return 1.0 / self.init_n0 * ret
 
+    def calc_f_eta_variation(self, eta_i: int):
+
+        lin_part_hat = self.eta_lagr_hat[eta_i] / self.mu_eta
+        eta_hat = np.fft.fft2(self.etas[eta_i])
+        lin_part = np.fft.ifft2(lin_part_hat * eta_hat, s=self.etas[0].shape)
+
+        variation = -lin_part + self.eta_non_lin_term[eta_i]
+        return variation
+
+    def calc_f_n0_variation(self):
+
+        lin_part_hat = self.n0_lagr_hat / self.mu_n0
+        n0_hat = np.fft.fft2(self.n0)
+        lin_part = np.fft.ifft2(lin_part_hat * n0_hat, s=self.n0.shape)
+
+        variation = lin_part + self.n0_non_lin_term
+        return variation
+
+    def calc_f(self) -> np.ndarray:
+
+        eta_sum = np.zeros(self.velocity.shape, dtype=complex)
+        for eta_i in range(self.eta_count):
+
+            eta_variation = self.calc_f_eta_variation(eta_i)
+            op = self.fd_q_op_on_scalar_field(eta_i, eta_variation)
+
+            eta_conj = np.conj(self.etas[eta_i])
+            op[0] *= eta_conj
+            op[1] *= eta_conj
+
+            eta_sum += op * np.conj(op)
+        eta_sum = np.real(eta_sum)
+
+        n0_variation = self.calc_f_n0_variation()
+        n0_gradient = np.array(np.gradient(n0_variation, self.dx))
+
+        ret = self.n0 * n0_gradient + eta_sum
+        return -1.0 * ret
+
+    def calc_advection_spatial_gradient(self, arr: np.ndarray) -> np.ndarray:
+
+        dx_x = np.gradient(arr[0], self.dx, axis=0)
+        dx_y = np.gradient(arr[1], self.dx, axis=0)
+        dy_x = np.gradient(arr[0], self.dx, axis=1)
+        dy_y = np.gradient(arr[1], self.dx, axis=1)
+
+        ret = [arr[0] * dx_x + arr[1] * dy_x, arr[0] * dx_y + arr[1] * dy_y]
+
+        return np.array(ret)
+
+    def calc_velocity_non_lin_part(self) -> np.ndarray:
+
+        f = self.calc_f()
+        mixed_deriv = np.array(
+            [
+                self.fd_mixed_deriv(self.velocity[1]),
+                self.fd_mixed_deriv(self.velocity[0]),
+            ]
+        )
+        advection_grad = self.calc_advection_spatial_gradient(self.velocity)
+
+        ret = (self.mu_b - self.mu_s) / self.init_n0 * mixed_deriv
+        ret -= advection_grad
+        ret += f / self.init_n0
+
+        return ret
+
+    def vec2d_component_wise_fft(self, arr: np.ndarray) -> np.ndarray:
+
+        ret = [np.fft.fft2(arr[0]), np.fft.fft2(arr[1])]
+
+        return np.array(ret, dtype=complex)
+
+    def vec2d_component_wise_ifft(self, arr: np.ndarray, shape: tuple) -> np.ndarray:
+
+        ret = [np.fft.ifft2(arr[0], s=shape), np.fft.ifft2(arr[1], s=shape)]
+
+        return np.array(ret, dtype=complex)
+
     def velocity_routine(self) -> np.ndarray:
 
-        pass
+        n = self.calc_velocity_non_lin_part()
+
+        denom = 1.0 - self.dt * self.v_lagr_hat
+        n_v = self.vec2d_component_wise_fft(self.velocity) + self.dt * n
+        n_v = n_v / denom
+
+        return np.real(self.vec2d_component_wise_ifft(n_v, self.velocity.shape))
 
     ###################
     ## SIM FUNCTIONS ##
@@ -734,23 +817,37 @@ class FFTHydroAPFCSim:
 
         return lapl_op + 2 * complex(0, 1) * g_nabla
 
+    def fd_mixed_deriv(self, arr: np.ndarray) -> np.ndarray:
+
+        dx = np.gradient(arr, self.dx, axis=0)
+        d2xy = np.gradient(dx, self.dx, axis=1)
+
+        return d2xy
+
+    def fd_q_op_on_scalar_field(self, eta_i: int, arr: np.ndarray):
+
+        deriv = np.array(np.gradient(arr, self.dx))
+        return deriv + complex(0, 1) * self.G[eta_i] * arr
+
     def run_one_step(self):
         """
         Runs one entire timestep for the amplitudes and the average density.
         """
 
-        self.n0_old = self.n0.copy()
-        self.n0 = self.n0_routine()
+        n_n0 = self.n0_routine()
 
         if self.config["keepEtaConst"]:
             return
 
         n_etas = np.zeros(self.etas.shape, dtype=complex)
-
         for eta_i in range(self.eta_count):
             n_etas[eta_i, :, :] = self.eta_routine(eta_i)
 
-        self.etas = n_etas.copy()
+        n_velocity = self.velocity_routine()
+
+        self.etas = n_etas
+        self.n0 = n_n0
+        self.velocity = n_velocity
 
     ##################
     ## IO FUNCTIONS ##
