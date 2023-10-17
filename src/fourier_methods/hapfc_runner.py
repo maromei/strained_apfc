@@ -85,7 +85,16 @@ class FFTHydroAPFCSim:
     #: of the velocity flow equation. Should be precomputed on init.
     v_lagr_hat: np.ndarray
 
+    #: This saves the non linear part of :math:`\frac{\delta F}{\delta \eta_m}`
+    #: Note that it does not save it for the entire hamiltonian!
+    #: It should be updated in the :py:meth:`eta_routine` function,
+    #: and will later be used for the velocity calculation.
     eta_non_lin_term: np.ndarray
+
+    #: This saves the non linear part of :math:`\frac{\delta F}{\delta n_0}`
+    #: Note that it does not save it for the entire hamiltonian!
+    #: It should be updated in the :py:meth:`n0_routine`, and will later be used
+    #: for the velocity calculation.
     n0_non_lin_term: np.ndarray
 
     def __init__(self, config: dict, con_sim: bool = False):
@@ -246,6 +255,9 @@ class FFTHydroAPFCSim:
         self.build_laplace_op()
         self.build_n0(con_sim, config)
         self.build_velocity_field()
+
+        self.eta_non_lin_term = np.zeros(self.etas.shape, dtype=complex)
+        self.n0_non_lin_term = np.zeros(self.n0.shape)
 
     def build_velocity_field(self):
         """
@@ -651,40 +663,6 @@ class FFTHydroAPFCSim:
     ##############################
     ## SIM FUNCTIONS - VELOCITY ##
     ##############################
-
-    def get_n0_variation(self):
-
-        phi = self.get_phi()
-        eta_prod = self.get_eta_prod()
-
-        ret = self.lbd * self.n0 - self.Bx * self.fd_laplace_op(self.n0)
-        ret -= phi * self.t
-        ret += 3.0 * self.v * eta_prod
-        ret -= self.t * self.n0**2
-        ret += self.v * self.n0**3
-        ret += phi * 3.0 * self.v * self.n0
-        ret += 0.5 * (self.velocity[0] ** 2 + self.velocity[1] ** 2)
-
-        return ret
-
-    def get_eta_variation(self, eta_i: int):
-
-        poss_eta_is = set([i for i in range(self.eta_count)])
-        other_etas = list(poss_eta_is.difference({eta_i}))
-
-        eta_conj1 = np.conj(self.etas[other_etas[0]])
-        eta_conj2 = np.conj(self.etas[other_etas[1]])
-
-        n = 3.0 * self.D * self.amp_abs_sq_sum(eta_i)
-        n += 3.0 * self.v * self.n0_old**2
-        n -= 2.0 * self.t * self.n0_old
-        n *= self.etas[eta_i]
-        n += 2.0 * self.C(self.n0_old) * eta_conj1 * eta_conj2
-
-        lagr = (self.A + self.dB0) * self.etas[eta_i]
-        lagr += self.fd_gsq_hat_op(self.etas[eta_i], eta_i)
-
-        return np.linalg.norm(self.G[eta_i]) ** 2 * (n + lagr)
 
     def get_velocity_lin_term(self) -> np.ndarray:
         """
