@@ -3,7 +3,7 @@ from calculations import initialize, params
 from manage import read_write as rw
 
 
-class FFTN0Sim:
+class FFTHydroAPFCSim:
     """
     This class is supposed to run a FFT simulations with
     :math:`n_0`, where
@@ -73,12 +73,19 @@ class FFTN0Sim:
     dx: float  #: grid spacing
     is_1d: bool  #: Whether it is a 1d simulation
 
-    eta_lagr: np.ndarray
-    n0_lagr: np.ndarray
-    v_lagr: np.ndarray
+    #: saves the constant fourier transformed linear part
+    #: of the amplitude flow equation. Should be precomputed on init.
+    eta_lagr_hat: np.ndarray
+
+    #: saves the constant fourier transformed linear part
+    #: of the average density flow equation. Should be precomputed on init.
+    n0_lagr_hat: np.ndarray
+
+    #: saves the constant fourier transformed linear part
+    #: of the velocity flow equation. Should be precomputed on init.
+    v_lagr_hat: np.ndarray
 
     eta_non_lin_term: np.ndarray
-
     n0_non_lin_term: np.ndarray
 
     def __init__(self, config: dict, con_sim: bool = False):
@@ -133,6 +140,7 @@ class FFTN0Sim:
         ##############
 
         self.build(con_sim, config)
+        self.precalculations()
 
     ########################
     ## BUILDING FUNCTIONS ##
@@ -254,6 +262,19 @@ class FFTN0Sim:
         """
 
         self.velocity = np.zeros((2, self.pt_count_x, self.pt_count_y))
+
+    def precalculations(self):
+        """
+        Does calculations for constants that get reused constantly in the
+        simulation.
+        """
+
+        self.eta_lagr_hat = np.zeros(self.etas.shape, dtype=complex)
+        for eta_i in range(self.eta_count):
+            self.eta_lagr_hat[eta_i] = self.lagr_hat(eta_i)
+
+        self.n0_lagr_hat = self.get_n0_lin_term()
+        self.v_lagr_hat = self.get_velocity_lin_term()
 
     ########################
     ## INIT ETA FUNCTIONS ##
@@ -489,10 +510,9 @@ class FFTN0Sim:
             np.array:
         """
 
-        lagr = self.lagr_hat(eta_i)
         n = self.n_hat(eta_i)
 
-        denom = 1.0 - self.dt * lagr
+        denom = 1.0 - self.dt * self.eta_lagr_hat[eta_i]
         n_eta = np.fft.fft2(self.etas[eta_i]) + self.dt * n
         n_eta = n_eta / denom
 
@@ -610,8 +630,6 @@ class FFTN0Sim:
         phi = self.get_phi()
         eta_prod = self.get_eta_prod()
 
-        lagr = self.get_n0_lin_term()
-
         n = -phi * self.t
         n += 3.0 * self.v * eta_prod
         n -= self.t * self.n0**2
@@ -624,7 +642,7 @@ class FFTN0Sim:
         n -= self.get_additional_hydro_flow_term_n0(self.n0, self.velocity)
         n = np.fft.fft2(n)
 
-        denom = 1.0 - self.dt * self.laplace_op * lagr
+        denom = 1.0 - self.dt * self.laplace_op * self.n0_lagr_hat
         n_n0 = np.fft.fft2(self.n0) + self.dt * self.laplace_op * n
         n_n0 = n_n0 / denom
 
@@ -667,6 +685,31 @@ class FFTN0Sim:
         lagr += self.fd_gsq_hat_op(self.etas[eta_i], eta_i)
 
         return np.linalg.norm(self.G[eta_i]) ** 2 * (n + lagr)
+
+    def get_velocity_lin_term(self) -> np.ndarray:
+        """
+        Calculates the linear term for the velocity flow equation.
+        Does this for both x and y compontents
+
+        Returns:
+            np.ndarray: with shape [2, *domain_size] with first component being
+                the x value, second component is y value
+        """
+
+        mu_b = self.mu_b
+        mu_diff = self.mu_b - self.mu_s
+
+        d2x_op_hat = -self.kxm**2
+        d2y_op_hat = -self.kym**2
+
+        ret = np.array(
+            [
+                mu_b * d2x_op_hat + mu_diff * d2y_op_hat,
+                mu_diff * d2x_op_hat + mu_b * d2y_op_hat,
+            ]
+        )
+
+        return 1.0 / self.init_n0 * ret
 
     def velocity_routine(self) -> np.ndarray:
 
