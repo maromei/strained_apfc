@@ -144,6 +144,66 @@ def read_all_etas_at_line(
     return etas
 
 
+def read_vector_field_hack(
+    shape: tuple[int], func: callable, *args, **kwargs
+) -> np.ndarray:
+    """
+    This is a very crude hack for reading vector fields from a file
+    using the scalar fields functions.
+
+    It uses the shape and modified the :code:`dim_x` and :code:`dim_y` values passed
+    to the funtions.
+    :code:`*args` and :code:`**kwargs` will be passed to the :code:`func`
+    function. Please make sure the code:`dim_x` and :code:`dim_y` are
+    not present in the :code:`*args`.
+    They will be removed from the :code:`**kwargs`.
+
+    Args:
+        shape (tuple[int]): Shape of the vector field
+            (vector_dim, x_dim, y_dim)
+        func (callable): function to call
+
+    Raises:
+        AttributeError: Misshapen shape
+        NotImplementedError: If the x and y dimensions are different.
+
+    Returns:
+        np.ndarray:
+    """
+
+    # The vector fields is saved flattened in one line.
+    # All the read functions always assumed to read a simple scalar field,
+    # which is why they take an x-dimension and a y-dimension as an input.
+    # This does not work for vector fields like the velocity.
+    # --> The trick to loading is to read the x and y component flattened.
+    # --> read from file with shape (vec_dim, x**2)
+    # --> then correct to actual shape
+    # The limitation is that x and y need to have the same amount of points.
+
+    if "dim_x" in kwargs.keys():
+        kwargs.pop("dim_x")
+
+    if "dim_y" in kwargs.keys():
+        kwargs.pop("dim_y")
+
+    if len(shape) != 3:
+        raise AttributeError(
+            f"The shape for the velocity needs to be (vec_dim, x, y) but is {shape}."
+        )
+
+    if shape[1] != shape[2]:
+        raise NotImplementedError(
+            "Can only read velocity arrays when the domain has equal size points."
+            " i.e.: In shape (vec_dim, x, y): x = y"
+        )
+
+    dim_x = shape[0]
+    dim_y = shape[1] ** 2
+
+    arr = func(*args, dim_x=dim_x, dim_y=dim_y, **kwargs)
+    return arr.reshape(shape)
+
+
 def count_lines(path: str) -> int:
     """
     Runs through a file and checks how many lines there are
