@@ -122,9 +122,33 @@ def load_from_file(config: dict, file_name: str, shape: tuple[int]) -> np.array:
     """
 
     out_path = f"{config['simPath']}/{file_name}"
-    arr, _ = rw.read_last_line_to_array(out_path, shape[0], shape[1])
+    type_ = detect_type(out_path)
+    arr, _ = rw.read_last_line_to_array(out_path, shape[0], shape[1], type_)
 
     return arr
+
+
+def detect_type(file_name: str) -> type:
+    """
+    Detects whether the values contained in the
+    file are complex or float.
+
+    Args:
+        file_name (str): _description_
+
+    Returns:
+        type: _description_
+    """
+
+    with open(file_name, "r") as f:
+        first_line = f.readline()
+
+    # even if the value saved is 0, the value will be saved as 0j
+    # --> j will always be present if the dtype is complex
+    if "j" in first_line:
+        return complex
+    else:
+        return float
 
 
 def init_config(config: dict):
