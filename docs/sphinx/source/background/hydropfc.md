@@ -77,7 +77,7 @@ $$
             \eta_m^* \mathcal{Q}_m \frac{\delta F}{\delta \eta_m^*} + \text{c.c.}
         \right]
 \end{equation}
-$$
+$$ (eqn:hydro_non_linear_f)
 
 The variation for the amplitudes does not change compared to the APFC formulation
 in eq. {eq}`eqn:apfc_flow`.
@@ -120,9 +120,19 @@ $$
 \end{gathered}
 $$
 
-## Numerical Limitations
+## Numerics
 
-### Flow of Velocity
+As with all previous simulations, fourier methods with an
+[IMEX scheme](ch:fourier_imex) are utilized. However, the flow equations now
+have differential operators in the non-linear part. For these finite differences
+are used.
+
+```{todo}
+Link to and specify which FD methods are used.
+(e.g. first order diff -> central difference with forward / backward on boundary)
+```
+
+### Simplifications and Limitations
 
 A numerical problem of {eq}`eqn:hydro_apfc_flow_v` is having the average
 density field on the left hand side of the equation. Simply dividing by
@@ -166,3 +176,33 @@ is described in the works of {cite:t}`shpfc`.
 ```{todo}
 shpfc paper reading
 ```
+
+### Scheme
+
+The components of velocity's flow equation can be solved seperately. This
+way some parts of the gradients can be treated implicelty.
+
+$$
+\begin{align}
+    \partial_t \boldsymbol{v}_x &=
+    \frac{1}{n_{0, \text{init}}} \left[
+        \mu_\text{B} \partial^2_x +
+        \left( \mu_\text{B} - \mu_\text{S} \right) \partial^2_y
+    \right] \boldsymbol{v}_x +
+    \frac{\mu_\text{B} - \mu_\text{S}}{n_{0, \text{init}}} \partial^2_{x,y} \boldsymbol{v}_y
+    + \left[
+        \frac{\boldsymbol{f}}{n_{0, \text{init}}}
+        - \left( \boldsymbol{v} \nabla \right) \boldsymbol{v}
+    \right]_x
+    \\
+    \partial_t \boldsymbol{v}_y &= \frac{1}{n_{0, \text{init}}} \left[
+        \left( \mu_\text{B} - \mu_\text{S} \right) \partial^2_x +
+        \mu_\text{B} \partial^2_y
+    \right] \boldsymbol{v}_y +
+    \frac{\mu_\text{B} - \mu_\text{S}}{n_{0, \text{init}}} \partial^2_{x,y} \boldsymbol{v}_x
+    + \left[
+        \frac{\boldsymbol{f}}{n_{0, \text{init}}}
+        - \left( \boldsymbol{v} \nabla \right) \boldsymbol{v}
+    \right]_y
+\end{align}
+$$ (eqn:hapfc_velocity_flow_numeric_scheme)
