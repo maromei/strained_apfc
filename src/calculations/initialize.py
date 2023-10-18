@@ -2,6 +2,10 @@ import numpy as np
 
 from manage import read_write as rw
 
+###################################
+### Domain Shape / Initializers ###
+###################################
+
 
 def tanhmin(radius: np.array, eps: float) -> np.array:
     """
@@ -69,6 +73,11 @@ def center_line(xm: np.array, config: dict) -> np.array:
     return eta * config["initEta"]
 
 
+######################
+### Load from File ###
+######################
+
+
 def load_eta_from_file(shape: tuple[int], config: dict, eta_i: int) -> np.array:
     """
     Searches the `sim_path` in the config file for the
@@ -103,6 +112,51 @@ def load_n0_from_file(shape: tuple[int], config: dict) -> np.array:
     """
 
     return load_from_file(config, "n0.txt", shape)
+
+
+def load_velocity_from_file(shape: tuple[int], config: dict) -> np.ndarray:
+    """
+    Loads a velocity from a file. Always reads the last line.
+
+    Args:
+        shape (tuple[int]): The shape the velocity needs to have. See
+            the error section for more details on the limitations.
+        config (dict):
+
+    Raises:
+        AttributeError: Due to current limitations in read functions the velocity
+            can only be read if it has a shape of (2, x, y) and x = y.
+        NotImplementedError: If x != y
+
+    Returns:
+        np.ndarray:
+    """
+
+    # The velocity is saved flattened in one line.
+    # All the read functions always assumed to read a simple scalar field,
+    # which is why they take an x-dimension and a y-dimension as an input.
+    # This does not work for vector fields like the velocity.
+    # --> The trick to loading is to read the x and y component flattened.
+    # --> read from file with shape (2, x**2)
+    # --> then correct to actual shape
+    # The limitation is that x and y need to have the same amount of points.
+
+    if len(shape) != 3 or shape[0] != 2:
+        raise AttributeError(
+            f"The shape for the velocity needs to be (2, x, y) but is {shape}."
+        )
+
+    if shape[1] != shape[2]:
+        raise NotImplementedError(
+            "Can only read velocity arrays when the domain has equal size points."
+            " i.e.: In shape (2, x, y): x = y"
+        )
+
+    new_shape = (2, shape[1] ** 2)
+    arr = load_from_file(config, "velocity.txt", new_shape)
+    arr = arr.reshape(shape)
+
+    return arr
 
 
 def load_from_file(config: dict, file_name: str, shape: tuple[int]) -> np.array:
@@ -149,6 +203,11 @@ def detect_type(file_name: str) -> type:
         return complex
     else:
         return float
+
+
+####################################################
+### Initialize Config / calculate Init Variables ###
+####################################################
 
 
 def init_config(config: dict):
@@ -267,6 +326,11 @@ def init_n0_height(
             break
 
     config["n0"] = -0.5 * xnew
+
+
+####################
+### Line defects ###
+####################
 
 
 def line_defect_x(

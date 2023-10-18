@@ -152,7 +152,7 @@ class FFTHydroAPFCSim:
         self.G = np.array(config["G"])
         self.eta_count = self.G.shape[0]
 
-        self.config = config
+        self.config = config.copy()
 
         self.mu_b = config.get("mu_b", self.mu_b)
         self.mu_s = config.get("mu_s", self.mu_s)
@@ -267,26 +267,28 @@ class FFTHydroAPFCSim:
         self.build_gsq_hat()
         self.build_laplace_op()
         self.build_n0(con_sim, config)
-        self.build_velocity_field()
+        self.build_velocity_field(con_sim)
 
         self.eta_non_lin_term = np.zeros(self.etas.shape, dtype=complex)
         self.n0_non_lin_term = np.zeros(self.n0.shape)
 
-    def build_velocity_field(self):
+    def build_velocity_field(self, con_sim: bool):
         """
         Creates the velocity field.
 
-        TODO: load from file
-
         TODO: init with displacement
 
-        TODO: 1D init
-
         Args:
-            config (dict): config
+            con_sim (bool): Whether the simulation should be continued.
+                Velocity will be read from file.
         """
 
-        self.velocity = np.zeros((2, self.pt_count_x, self.pt_count_y))
+        shape = (2, self.pt_count_x, self.pt_count_y)
+
+        if con_sim:
+            self.velocity = initialize.load_velocity_from_file(shape, self.config)
+        else:
+            self.velocity = np.zeros(shape)
 
     def precalculations(self):
         """
