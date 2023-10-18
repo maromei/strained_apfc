@@ -687,7 +687,20 @@ class FFTHydroAPFCSim:
 
         return 1.0 / self.init_n0 * ret
 
-    def calc_f_eta_variation(self, eta_i: int):
+    def calc_f_eta_variation(self, eta_i: int) -> np.ndarray:
+        """
+        Given :py:attr:`eta_lagr_hat` and :py:attr:`eta_non_lin_term`,
+        this function calculates the variation w.r.t. :math:`\\eta_m`
+        needed by :math:`\\boldymbol{f}`
+        in eq. :eq:`eqn:hydro_non_linear_f`.
+
+        Args:
+            eta_i (int): Index for which amplitude the variation should be
+                computed.
+
+        Returns:
+            np.ndarray:
+        """
 
         lin_part_hat = self.eta_lagr_hat[eta_i] / self.mu_eta
         eta_hat = np.fft.fft2(self.etas[eta_i])
@@ -696,22 +709,42 @@ class FFTHydroAPFCSim:
         variation = -lin_part + self.eta_non_lin_term[eta_i]
         return variation
 
-    def calc_f_n0_variation(self):
+    def calc_f_n0_variation(self) -> np.ndarray:
+        """
+        Given :py:attr:`n0_lagr_hat` and :py:attr:`n0_non_lin_term`,
+        this function calculates the variation w.r.t :math:`n_0`
+        needed by :math:`\\boldymbol{f}`
+        in eq. :eq:`eqn:hydro_non_linear_f`.
+
+        Returns:
+            np.ndarray:
+        """
 
         lin_part_hat = self.n0_lagr_hat / self.mu_n0
         n0_hat = np.fft.fft2(self.n0)
         lin_part = np.fft.ifft2(lin_part_hat * n0_hat, s=self.n0.shape)
 
         variation = lin_part + self.n0_non_lin_term
-        return variation
+        return np.real(variation)
 
     def calc_f(self) -> np.ndarray:
+        """
+        Calculates eq. :eq:`eqn:hydro_non_linear_f` for the last timestep.
+
+        Returns:
+            np.ndarray:
+        """
 
         eta_sum = np.zeros(self.velocity.shape, dtype=complex)
         for eta_i in range(self.eta_count):
 
             eta_variation = self.calc_f_eta_variation(eta_i)
-            op = self.fd_q_op_on_scalar_field(eta_i, eta_variation)
+
+            q_op_deriv = np.array(np.gradient(eta_variation, self.dx))
+            eta_variation[0] *= complex(0, 1) * self.G[eta_i, 0]
+            eta_variation[1] *= complex(0, 1) * self.G[eta_i, 1]
+
+            op = q_op_deriv + eta_variation
 
             eta_conj = np.conj(self.etas[eta_i])
             op[0] *= eta_conj
@@ -727,6 +760,15 @@ class FFTHydroAPFCSim:
         return -1.0 * ret
 
     def calc_advection_spatial_gradient(self, arr: np.ndarray) -> np.ndarray:
+        """
+        Calculates :math:`(\\boldymbol{v} \\nabla) \\boldsymbol{v}`
+
+        Args:
+            arr (np.ndarray): :math:`\\boldsymbol{v}`
+
+        Returns:
+            np.ndarray:
+        """
 
         dx_x = np.gradient(arr[0], self.dx, axis=0)
         dx_y = np.gradient(arr[1], self.dx, axis=0)
@@ -738,6 +780,13 @@ class FFTHydroAPFCSim:
         return np.array(ret)
 
     def calc_velocity_non_lin_part(self) -> np.ndarray:
+        """
+        Calculates the entire non-linear part of the velocity flow equation
+        (eq. :eq:`eqn:hapfc_velocity_flow_numeric_scheme`)
+
+        Returns:
+            np.ndarray: _description_
+        """
 
         f = self.calc_f()
         mixed_deriv = np.array(
@@ -755,18 +804,45 @@ class FFTHydroAPFCSim:
         return ret
 
     def vec2d_component_wise_fft(self, arr: np.ndarray) -> np.ndarray:
+        """
+        Component wise fft of 2d vector field
+
+        Args:
+            arr (np.ndarray): 2d vector field
+
+        Returns:
+            np.ndarray:
+        """
 
         ret = [np.fft.fft2(arr[0]), np.fft.fft2(arr[1])]
-
         return np.array(ret, dtype=complex)
 
     def vec2d_component_wise_ifft(self, arr: np.ndarray, shape: tuple) -> np.ndarray:
+        """
+        Component wise inverse fft of 2d vector field
+
+        Args:
+            arr (np.ndarray): 2d vector field
+            shape (tuple): shape for the output to have.
+                (See :code:`np.fft.ifft2` documentation.)
+
+        Returns:
+            np.ndarray:
+        """
 
         ret = [np.fft.ifft2(arr[0], s=shape), np.fft.ifft2(arr[1], s=shape)]
-
         return np.array(ret, dtype=complex)
 
     def velocity_routine(self) -> np.ndarray:
+        """
+        One iteration for updating the velocity.
+        The routine relies on :py:attr:`eta_non_lin_term` and
+        :py:attr:`n0_non_lin_term` to be set previously by the
+        n0 and eta routine.
+
+        Returns:
+            np.ndarray:
+        """
 
         n = self.calc_velocity_non_lin_part()
 
@@ -774,15 +850,16 @@ class FFTHydroAPFCSim:
         n_v = self.vec2d_component_wise_fft(self.velocity) + self.dt * n
         n_v = n_v / denom
 
-        return np.real(self.vec2d_component_wise_ifft(n_v, self.velocity.shape))
+        return np.real(self.vec2d_component_wise_ifft(n_v, self.velocity[0].shape))
 
     ###################
     ## SIM FUNCTIONS ##
     ###################
 
-    def fd_laplace_op(self, arr: np.ndarray) -> np.ndarray:
+    def fd_mixed_deriv(self, arr: np.ndarray) -> np.ndarray:
         """
-        Finite difference version of the laplace operator
+        Calculates :math:`\\frac{\partial^2}{\partial x \partial y}`
+        using finite differences.
 
         Args:
             arr (np.ndarray):
@@ -791,43 +868,10 @@ class FFTHydroAPFCSim:
             np.ndarray:
         """
 
-        dx, dy = np.gradient(arr, self.dx)
-
-        dx2 = np.gradient(dx, self.dx, axis=0)
-        dy2 = np.gradient(dy, self.dx, axis=1)
-
-        return dx2 + dy2
-
-    def fd_gsq_hat_op(self, arr: np.ndarray, eta_i: int) -> np.ndarray:
-
-        ret = self.fd_g_hat_op(arr, eta_i)
-        ret = self.fd_g_hat_op(arr, eta_i)
-
-        return ret
-
-    def fd_g_hat_op(self, arr: np.ndarray, eta_i: int) -> np.ndarray:
-
-        dx, dy = np.gradient(arr, self.dx)
-
-        d2x = np.gradient(dx, self.dx, axis=0)
-        d2y = np.gradient(dy, self.dx, axis=1)
-
-        lapl_op = self.beta_sqrt * (d2x + d2y)
-        g_nabla = self.G[eta_i, 0] * dx + self.G[eta_i, 1] * dy
-
-        return lapl_op + 2 * complex(0, 1) * g_nabla
-
-    def fd_mixed_deriv(self, arr: np.ndarray) -> np.ndarray:
-
         dx = np.gradient(arr, self.dx, axis=0)
         d2xy = np.gradient(dx, self.dx, axis=1)
 
         return d2xy
-
-    def fd_q_op_on_scalar_field(self, eta_i: int, arr: np.ndarray):
-
-        deriv = np.array(np.gradient(arr, self.dx))
-        return deriv + complex(0, 1) * self.G[eta_i] * arr
 
     def run_one_step(self):
         """
@@ -871,6 +915,9 @@ class FFTHydroAPFCSim:
         with open(f"{out_path}/n0.txt", "w") as f:
             f.write("")
 
+        with open(f"{out_path}/velocity.txt", "w") as f:
+            f.write("")
+
     def write(self, out_path: str):
         """
         Writes the current content of
@@ -884,3 +931,4 @@ class FFTHydroAPFCSim:
         """
 
         rw.write_etas_n0(self.etas, self.n0, out_path, "a")
+        rw.write_velocity(self.velocity, out_path, "a")

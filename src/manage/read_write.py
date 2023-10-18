@@ -297,6 +297,18 @@ def write_n0(n0: np.array, out_path: str | Path, mode: str = "a"):
         f.write(out)
 
 
+def write_velocity(velocity: np.ndarray, out_path: str | Path, mode: str = "a"):
+
+    with open(f"{out_path}/velocity.txt", mode) as f:
+
+        out = velocity.flatten()
+        out = out.astype(str)
+        out = ",".join(out.tolist())
+        out += "\n"
+
+        f.write(out)
+
+
 def write_etas_n0(etas: np.array, n0: np.array, out_path: str | Path, mode: str = "a"):
 
     write_etas(etas, out_path, mode)
