@@ -1,3 +1,4 @@
+(ch:hydro_apfc)=
 # Hydro APFC
 
 See {cite:t}`hydrodynamics_apfc`

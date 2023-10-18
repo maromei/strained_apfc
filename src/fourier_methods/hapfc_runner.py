@@ -5,10 +5,25 @@ from manage import read_write as rw
 
 class FFTHydroAPFCSim:
     """
-    This class is supposed to run a FFT simulations with
-    :math:`n_0`, where
+    This class implements the Hydro-APFC model using fourier methods.
+    For more info about the model see the :ref:`ch:hydro_apfc` section.
 
-    For more information see the :ref:`ch:scheme_ampl_n0` section.
+    General Idea
+    ------------
+
+    In each timestep the average density and amplitudes are updated first.
+    The scheme for the velocity requries heavy computation of variations
+    (:math:`\\frac{\\delta F}{\\delta n_0}` and
+    :math:`\\frac{\\delta F}{\\delta \\eta_m^*}`).
+    These variations are almost fully computed in the average density and
+    amplitude update steps. To not recompute anything, the average densities
+    and amplitudes are updated first, and the relevant non-linear parts
+    are saved in :py:attr:`eta_non_lin_term` and :py:attr:`n0_non_lin_term`.
+    The variations are then reconstructed in the velocity update.
+
+    As a consequence the non-linear parts need to be fully explicit. Not only
+    the quantitiy of the variation needs to be treated explicetly, but every
+    single time dependant field will be taken from the last timestep.
     """
 
     # Default config for db0 0.044
