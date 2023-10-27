@@ -1,3 +1,13 @@
+"""
+This module is a collection of functions needed to initialize different parts
+of the simulation.
+
+F.e. :py:func:`single_grain` initializes the domain to have a grain in the
+center. :py:func:`init_eta_height` can compute the inital height of the
+amplitudes and :py:func:`line_defect_x` and :py:func:`line_defect_y` calculate
+the displacement for a given :ref:`burgers vector <ch:burgers_vector>`.
+"""
+
 import numpy as np
 
 from manage import read_write as rw
@@ -34,7 +44,7 @@ def single_grain(xm: np.array, ym: np.array, config: dict) -> np.array:
     :py:meth:`calculations.initialize.tanhmin` function.
     The radius, interface width and height are read from the config.
 
-    .. image:: ../../figures/code_doc/calculations/initialize/single_grain_example.png
+    .. image:: figures/single_grain_example.png
 
     Args:
         xm (np.array): x-meshgrid
@@ -58,7 +68,7 @@ def center_line(xm: np.array, config: dict) -> np.array:
     initialize a vertical line in the middle of the domain.
     The radius, interface width and initial height are read from the config.
 
-    .. image:: ../../figures/code_doc/calculations/initialize/center_line_example.png
+    .. image:: figures/center_line_example.png
 
     Args:
         xm (np.array): x-meshgrid
@@ -337,7 +347,8 @@ def line_defect_x(
     x: float, y: float, poisson_ratio: float, bx: float, offset: np.array = None
 ) -> float:
     """
-    :math:`u_x` for a line defect.
+    Calculates :math:`u_x` in eq.
+    :eq:`eqn:displacement_edge_disloc` for a line defect.
 
     Args:
         x (float): x coordinate
@@ -366,7 +377,8 @@ def line_defect_y(
     x: float, y: float, poisson_ratio: float, by: float, offset: np.array = None
 ) -> float:
     """
-    :math:`u_y` for a line defect.
+    Calculates :math:`u_y` in eq.
+    :eq:`eqn:displacement_edge_disloc` for a line defect.
 
     Args:
         x (float): x coordinate
