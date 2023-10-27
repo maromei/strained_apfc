@@ -39,7 +39,3 @@
 .. autofunction:: line_defect_x
 .. autofunction:: line_defect_y
 ```
-
-```{todo}
-Document u_x u_y equations and link them in the docstrings
-```
