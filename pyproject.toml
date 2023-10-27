@@ -31,6 +31,16 @@ Source = "https://github.com/maromei/strained_apf"
 [tool.hatch.version]
 path = "src/__about__.py"
 
+#######################
+### COVERAGE CONFIG ###
+#######################
+
+[tool.coverage.run]
+data_file = "tests/output/coverage/.coverage"
+
+[tool.coverage.html]
+directory = "tests/output/coverage"
+
 #####################
 ### ENV - DEFAULT ###
 #####################
@@ -91,3 +101,21 @@ dependencies = [
 
 [tool.hatch.envs.style.scripts]
 precommit-install = "pre-commit install"
+
+##################
+### ENV - TEST ###
+##################
+
+[tool.hatch.envs.tests]
+extra-dependencies = [
+  "pytest-cov"
+]
+
+[tool.hatch.envs.tests.scripts]
+cov = """
+  pytest tests/ \
+  --cov-report html --cov-report term \
+  --cov-config=pyproject.toml \
+  --cov=src
+"""
+show-cov-html = "firefox tests/output/coverage/index.html"
