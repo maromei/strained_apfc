@@ -1,7 +1,7 @@
 # Background
 
 ```{toctree}
-:maxdepth: 2
+:maxdepth: 1
 :caption: 'Contents:'
 
 notation
@@ -10,6 +10,7 @@ hydropfc
 displacement
 stress_strain
 fourier
+initialization
 bibliography
 additional_info/index
 notes_questions

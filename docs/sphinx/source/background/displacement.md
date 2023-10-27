@@ -125,3 +125,34 @@ $$
 $$
 
 and $\epsilon_{ij}$ is the [Levi-Civita Symbol](levi_civita_symbol)
+
+### From amplitudes
+
+```{todo}
+reconstruct displacement from amplitudes. Add caveats.
+```
+
+### Edge Dislocation
+
+The components for $\boldsymbol{u}$ for an edge dislocation
+with a [burgers vector](ch:burgers_vector) $\boldsymbol{b}$ is given by
+({cite:t}`2017Anderson_theory_of_dislocations`)
+
+$$
+\begin{align}
+u_x &= \frac{b_x}{2 \pi} \left[
+    \text{arctan}\left( \frac{y}{x} \right) + \frac{
+        xy
+    }{
+        2(1-\nu)(x^2+y^2)
+    }
+\right] \\
+u_y &= -\frac{b_y}{2 \pi} \left[
+    \frac{1 - 2 \nu}{4 (1 - \nu)}
+    \log \left( x^2 + y^2 \right) +
+    \frac{x^2 - y^2}{4(1-\nu)(x^2 + y^2)}
+\right]
+\end{align}
+$$ (eqn:displacement_edge_disloc)
+
+Here $\nu$ is the poisson ratio.
