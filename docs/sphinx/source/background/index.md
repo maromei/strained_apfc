@@ -13,6 +13,5 @@ fourier
 initialization
 bibliography
 additional_info/index
-notes_questions
 ```
 

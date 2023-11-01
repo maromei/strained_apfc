@@ -148,8 +148,8 @@ be constant $n_0 \rightarrow n_{0, \text{init}} = \text{const.}$, resulting in:
 $$
 \begin{equation}
     n_{0, \text{init}} \frac{D\mathbf{v}}{Dt} =
-        n_0 \left[
-            \frac{\partial v}{\partial t} +
+        n_{0, \text{init}} \left[
+            \frac{\partial \mathbf{v}}{\partial t} +
             \left( \mathbf{v} \nabla \right) \mathbf{v}
         \right]
     = \mathbf{f} + \mu_\text{S} \nabla^2 \mathbf{v} +
@@ -159,23 +159,11 @@ $$ (eqn:hydro_apfc_flow_v_corrected_n0)
 
 $n_{0, \text{init}}$ will be the value used for $n_0$ on initialization.
 This can be done since the flow equation of $n_0$ is set to conserve its value.
-Additionally, $n_0$ does not vary a lot in the solid phase, even at the defects.
+Additionally, $n_0$ does not vary a lot in the solid phase, even at the defects,
+which makes this approach a decent approximation of the actual value.
 
 ```{todo}
 Reference results for $n_0$ not varying much in the solid phase.
-```
-
-```{todo}
-Is it even true that it limits us to only the solid phase?
-The variation is not too great aournd the initial $n_0$.
-```
-
-This limits the simulation to the domain of the solid phase and additional
-ideas are needed to describe grain growth. An example of such an approach
-is described in the works of {cite:t}`shpfc`.
-
-```{todo}
-shpfc paper reading
 ```
 
 ### Scheme
@@ -185,25 +173,25 @@ way some parts of the gradients can be treated implicelty.
 
 $$
 \begin{align}
-    \partial_t \boldsymbol{v}_x &=
+    \partial_t \mathbf{v}_x &=
     \frac{1}{n_{0, \text{init}}} \left[
         \mu_\text{B} \partial^2_x +
         \left( \mu_\text{B} - \mu_\text{S} \right) \partial^2_y
-    \right] \boldsymbol{v}_x +
-    \frac{\mu_\text{B} - \mu_\text{S}}{n_{0, \text{init}}} \partial^2_{x,y} \boldsymbol{v}_y
+    \right] \mathbf{v}_x +
+    \frac{\mu_\text{B} - \mu_\text{S}}{n_{0, \text{init}}} \partial^2_{x,y} \mathbf{v}_y
     + \left[
         \frac{\boldsymbol{f}}{n_{0, \text{init}}}
-        - \left( \boldsymbol{v} \nabla \right) \boldsymbol{v}
+        - \left( \mathbf{v} \nabla \right) \mathbf{v}
     \right]_x
     \\
-    \partial_t \boldsymbol{v}_y &= \frac{1}{n_{0, \text{init}}} \left[
+    \partial_t \mathbf{v}_y &= \frac{1}{n_{0, \text{init}}} \left[
         \left( \mu_\text{B} - \mu_\text{S} \right) \partial^2_x +
         \mu_\text{B} \partial^2_y
-    \right] \boldsymbol{v}_y +
-    \frac{\mu_\text{B} - \mu_\text{S}}{n_{0, \text{init}}} \partial^2_{x,y} \boldsymbol{v}_x
+    \right] \mathbf{v}_y +
+    \frac{\mu_\text{B} - \mu_\text{S}}{n_{0, \text{init}}} \partial^2_{x,y} \mathbf{v}_x
     + \left[
         \frac{\boldsymbol{f}}{n_{0, \text{init}}}
-        - \left( \boldsymbol{v} \nabla \right) \boldsymbol{v}
+        - \left( \mathbf{v} \nabla \right) \mathbf{v}
     \right]_y
 \end{align}
 $$ (eqn:hapfc_velocity_flow_numeric_scheme)
