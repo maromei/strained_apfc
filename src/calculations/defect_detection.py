@@ -88,7 +88,7 @@ def mark(arr: np.ndarray) -> np.ndarray:
     """
 
     is_over_half = arr >= np.max(arr) / 2
-    is_over_half = arr.astype(int)
+    is_over_half = is_over_half.astype(int)
 
     return is_over_half
 
@@ -110,6 +110,16 @@ def abs_normalize(arr: np.ndarray) -> np.ndarray:
     arr = np.abs(arr)
     arr -= np.min(arr)
     arr /= np.max(arr)
+
+    return arr
+
+
+def grad_scale(arr: np.ndarray):
+
+    arr = abs_normalize(arr)
+    dx, dy = np.gradient(arr)
+    arr = dx**2 + dy**2
+    arr = abs_normalize(arr)
 
     return arr
 
@@ -288,7 +298,7 @@ def get_defects_center(
             (n, 2). The second dimension is for (x, y) coordinates.
     """
 
-    marked_arr = abs_normalize(arr)
+    marked_arr = grad_scale(arr)
     marked_arr = mark(marked_arr)
 
     if expand_radius is not None:
