@@ -1,6 +1,7 @@
 import numpy as np
 from calculations import initialize, params
 from manage import read_write as rw
+import warnings
 
 
 class FFTN0Sim:
@@ -28,6 +29,7 @@ class FFTN0Sim:
     pt_count_x = 1000  #: number of points in x-direction
     pt_count_y = 1000  #: number of points in y-direction
     dt: float = 0.5  #: timestep
+    eq_dt: float = 0.5
 
     #: reciprical vector; see eq. :eq:`eqn:apfc_flow_constants`.
     #: Should have shape :code:`(eta_count, 2)`
@@ -36,10 +38,12 @@ class FFTN0Sim:
     #: the amplitudes. Should have
     #: shape :code:`(eta_count, pt_count_x, pt_count_y)`
     etas: np.array = None
+    etas_hat: np.ndarray = None
 
     #: average densities. Should have
     #: shape :code:`(pt_count_x, pt_count_y)`
     n0: np.array = None
+    n0_hat: np.ndarray = None
 
     #: The :math:`\widehat{\mathcal{G}_m^2}` operator.
     #: See eq. :eq:`eqn:g_sq_op_fourier`
@@ -55,6 +59,9 @@ class FFTN0Sim:
     kym: np.array = None  #: y frequency meshgrid
 
     eta_count: int = 0  #: number of etas
+
+    etas_lin_part: np.ndarray = None
+    n0_lin_part: np.ndarray = None
 
     def __init__(self, config: dict, con_sim: bool = False):
         """
@@ -87,6 +94,7 @@ class FFTN0Sim:
         self.pt_count_x = config.get("numPtsX", self.pt_count_x)
         self.pt_count_y = config.get("numPtsY", self.pt_count_y)
         self.dt = config.get("dt", self.dt)
+        self.eq_dt = config.get("eqTimeStep", self.dt)
 
         self.G = np.array(config["G"])
         self.eta_count = self.G.shape[0]
@@ -141,7 +149,11 @@ class FFTN0Sim:
         if self.pt_count_y <= 1:
             self.init_eta_center_line(config)
         else:
-            self.init_eta_grain(config)
+            self.init_eta_rotated_grain(config)
+
+        self.etas_hat = np.zeros(self.etas.shape, dtype=complex)
+        for i in range(self.eta_count):
+            self.etas_hat[i] = np.fft.fft2(self.etas[i])
 
     def build_gsq_hat(self):
         """
@@ -171,7 +183,7 @@ class FFTN0Sim:
         else:
             self.n0 = np.ones(self.xm.shape, dtype=float) * self.init_n0
 
-        self.n0_old = self.n0.copy()
+        self.n0_hat = np.fft.fft2(self.n0)
 
     def build_laplace_op(self):
         """
@@ -203,6 +215,12 @@ class FFTN0Sim:
         self.build_laplace_op()
         self.build_n0(con_sim, config)
 
+        self.etas_lin_part = np.zeros(self.etas.shape, dtype=complex)
+        for i in range(self.eta_count):
+            self.etas_lin_part[i] = self.lagr_hat(i)
+
+        self.n0_lin_part = self.get_n0_lin_part()
+
     ########################
     ## INIT ETA FUNCTIONS ##
     ########################
@@ -231,10 +249,75 @@ class FFTN0Sim:
                 config,
             )
 
-            defect_prod = self.G[eta_i, 0] * defect_field[0]
-            defect_prod += self.G[eta_i, 1] * defect_field[1]
+            if defects is not None:
+                defect_prod = self.G[eta_i, 0] * defect_field[0]
+                defect_prod += self.G[eta_i, 1] * defect_field[1]
 
-            self.etas[eta_i] *= np.exp(complex(0, 1) * defect_prod)
+                self.etas[eta_i] *= np.exp(complex(0, 1) * defect_prod)
+
+    def init_eta_rotated_grain(self, config: dict):
+
+        self.init_eta_grain(config)
+        rot_config = config.copy()
+
+        theta = config.get("grainRotationTheta")
+        radius = config.get("grainRotationRadius")
+
+        if theta is None or radius is None:
+            return
+
+        rot = np.array(
+            [[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]]
+        )
+        G = np.array(config["G"])
+        G_rot = np.zeros(G.shape)
+
+        for eta_i in range(self.eta_count):
+            G_rot[eta_i] = rot.dot(G[eta_i])
+
+        rot_config["G"] = G_rot.tolist()
+        rot_config["initRadius"] = radius
+
+        rot_defects = rot_config.get("grainRotationDefects")
+        if rot_defects is not None:
+            defect_field = self.get_defect_field(rot_defects, rot_config)
+
+            # rot_r = np.array([defect_field[0].flatten(), defect_field[1].flatten()])
+            # rot_r = rot.dot(rot_r)
+        #
+        # s = np.array([
+        #    defect_field[0].flatten(),
+        #    defect_field[1].flatten()
+        # ])
+        # d = s - rot_r
+        # print(np.max(d), np.min(d))
+        #
+        # defect_field = np.array([
+        #    rot_r[0].reshape(self.xm.shape),
+        #    rot_r[1].reshape(self.ym.shape)
+        # ])
+
+        for eta_i in range(self.eta_count):
+            rot_grain = initialize.single_grain(
+                self.xm,
+                self.ym,
+                rot_config,
+            )
+            rot_grain = rot_grain.astype(complex)
+
+            self.etas[eta_i] = defect_field[0]
+            continue
+
+            if rot_defects is not None:
+                defect_prod = G_rot[eta_i, 0] * defect_field[0]
+                defect_prod += G_rot[eta_i, 1] * defect_field[1]
+
+                rot_grain *= np.exp(complex(0, 1) * defect_prod)
+
+            is_not_zero = rot_grain > config["initEta"] / 2
+            eta = self.etas[eta_i]
+            eta[is_not_zero] = rot_grain[is_not_zero]
+            self.etas[eta_i] = eta
 
     def get_defect_field(self, defects: list[dict], config: dict) -> np.array:
         """
@@ -257,11 +340,27 @@ class FFTN0Sim:
             burgers_vector = np.array(defect["burgers_vector"])
             offset = np.array(defect["offset"])
 
-            ux += initialize.line_defect_x(
-                self.xm, self.ym, defect["poisson_ratio"], burgers_vector[0], offset
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+
+                def_x = initialize.line_defect_x(
+                    self.xm, self.ym, defect["poisson_ratio"], burgers_vector[0], offset
+                )
+                def_y = initialize.line_defect_y(
+                    self.xm, self.ym, defect["poisson_ratio"], burgers_vector[1], offset
+                )
+
+            ux += np.nan_to_num(
+                def_x,
+                nan=0,
+                posinf=burgers_vector[0] / 2,
+                neginf=-burgers_vector[0] / 2,
             )
-            uy += initialize.line_defect_y(
-                self.xm, self.ym, defect["poisson_ratio"], burgers_vector[1], offset
+            uy += np.nan_to_num(
+                def_y,
+                nan=0,
+                posinf=burgers_vector[1] / 2,
+                neginf=-burgers_vector[1] / 2,
             )
 
         return np.array([ux, uy])
@@ -371,11 +470,11 @@ class FFTN0Sim:
         eta_conj2 = np.conj(self.etas[other_etas[1]])
 
         n = 3.0 * self.D * self.amp_abs_sq_sum(eta_i)
-        n += 3.0 * self.v * self.n0_old**2
-        n -= 2.0 * self.t * self.n0_old
+        n += 3.0 * self.v * self.n0**2
+        n -= 2.0 * self.t * self.n0
         n *= self.etas[eta_i]
 
-        n += 2.0 * self.C(self.n0_old) * eta_conj1 * eta_conj2
+        n += 2.0 * self.C(self.n0) * eta_conj1 * eta_conj2
 
         n = np.fft.fft2(n)
 
@@ -398,7 +497,7 @@ class FFTN0Sim:
         lagr = self.A * self.g_sq_hat[eta_i] + self.dB0
         return -1.0 * lagr * np.linalg.norm(self.G[eta_i]) ** 2
 
-    def eta_routine(self, eta_i: int) -> np.array:
+    def eta_routine(self, eta_i: int) -> tuple[np.array, np.array]:
         """
         Runs one time step for one single amplitude.
         See :ref:`ch:scheme_ampl_n0`
@@ -410,14 +509,15 @@ class FFTN0Sim:
             np.array:
         """
 
-        lagr = self.lagr_hat(eta_i)
+        lagr = self.etas_lin_part[eta_i]
         n = self.n_hat(eta_i)
 
         denom = 1.0 - self.dt * lagr
-        n_eta = np.fft.fft2(self.etas[eta_i]) + self.dt * n
+        n_eta = self.etas_hat[eta_i] + self.dt * n
         n_eta = n_eta / denom
 
-        return np.fft.ifft2(n_eta, s=self.etas[0].shape)
+        real_part = np.fft.ifft2(n_eta, s=self.etas[0].shape)
+        return real_part, n_eta
 
     ########################
     ## SIM FUNCTIONS - N0 ##
@@ -488,7 +588,10 @@ class FFTN0Sim:
 
         return 2.0 * eta_sum
 
-    def n0_routine(self) -> np.array:
+    def get_n0_lin_part(self) -> np.ndarray:
+        return self.lbd - self.A * self.laplace_op
+
+    def n0_routine(self) -> tuple[np.array, np.array]:
         """
         Computes the new :math:`n_0`.
 
@@ -499,7 +602,7 @@ class FFTN0Sim:
         phi = self.get_phi()
         eta_prod = self.get_eta_prod()
 
-        lagr = self.lbd
+        lagr = self.n0_lin_part
 
         n = -phi * self.t
         n += 3.0 * self.v * eta_prod
@@ -513,7 +616,8 @@ class FFTN0Sim:
         n_n0 = np.fft.fft2(self.n0) + self.dt * self.laplace_op * n
         n_n0 = n_n0 / denom
 
-        return np.real(np.fft.ifft2(n_n0, s=self.etas[0].shape))
+        real_part = np.real(np.fft.ifft2(n_n0, s=self.etas[0].shape))
+        return real_part, n_n0
 
     ###################
     ## SIM FUNCTIONS ##
@@ -524,18 +628,28 @@ class FFTN0Sim:
         Runs one entire timestep for the amplitudes and the average density.
         """
 
-        self.n0_old = self.n0.copy()
-        self.n0 = self.n0_routine()
-
-        if self.config["keepEtaConst"]:
-            return
+        self.n0, self.n0_hat = self.n0_routine()
 
         n_etas = np.zeros(self.etas.shape, dtype=complex)
+        n_etas_fft = np.zeros(self.etas.shape, dtype=complex)
 
         for eta_i in range(self.eta_count):
-            n_etas[eta_i, :, :] = self.eta_routine(eta_i)
+            real, fft = self.eta_routine(eta_i)
+            n_etas[eta_i] = real
+            n_etas_fft[eta_i] = fft
 
-        self.etas = n_etas.copy()
+        self.etas = n_etas
+        self.etas_hat = n_etas_fft
+
+    def equilibriate(self, timesteps):
+
+        old_dt = self.dt
+        self.dt = self.eq_dt
+
+        for _ in range(timesteps):
+            self.run_one_step()
+
+        self.dt = old_dt
 
     ##################
     ## IO FUNCTIONS ##
