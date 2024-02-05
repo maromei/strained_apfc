@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 from calculations import initialize, params
 from manage import read_write as rw
@@ -22,6 +23,7 @@ class FFTBaseSim:
     pt_count_x = 1000  #: number of points in x-direction
     pt_count_y = 1000  #: number of points in y-direction
     dt: float = 0.5  #: timestep
+    eq_dt: float = 0.5
 
     #: reciprical vector; see eq. :eq:`eqn:apfc_flow_constants`.
     #: Should have shape :code:`(eta_count, 2)`
@@ -30,6 +32,8 @@ class FFTBaseSim:
     #: the amplitudes. Should have
     #: shape :code:`(eta_count, pt_count_x, pt_count_y)`
     etas: np.array = None
+    etas_hat: np.ndarray = None
+    etas_lin_part: np.ndarray = None
 
     #: The :math:`\widehat{\mathcal{G}_m^2}` operator.
     #: See eq. :eq:`eqn:g_sq_op_fourier`
@@ -69,6 +73,7 @@ class FFTBaseSim:
         self.pt_count_x = config.get("numPtsX", self.pt_count_x)
         self.pt_count_y = config.get("numPtsY", self.pt_count_y)
         self.dt = config.get("dt", self.dt)
+        self.eq_dt = config.get("eqTimeStep", self.dt)
 
         self.G = np.array(config["G"])
         self.eta_count = self.G.shape[0]
@@ -122,6 +127,12 @@ class FFTBaseSim:
             self.init_eta_center_line(config)
         else:
             self.init_eta_grain(config)
+
+        self.etas_hat = np.zeros(self.etas.shape, dtype=complex)
+        self.etas_lin_part = np.zeros(self.etas.shape, dtype=complex)
+        for i in range(self.eta_count):
+            self.etas_hat[i] = np.fft.fft2(self.etas[i])
+            self.etas_lin_part[i] = self.lagr_hat(i)
 
     def build_gsq_hat(self):
         """
@@ -186,10 +197,11 @@ class FFTBaseSim:
                 config,
             )
 
-            defect_prod = self.G[eta_i, 0] * defect_field[0]
-            defect_prod += self.G[eta_i, 1] * defect_field[1]
+            if defects is not None:
+                defect_prod = self.G[eta_i, 0] * defect_field[0]
+                defect_prod += self.G[eta_i, 1] * defect_field[1]
 
-            self.etas[eta_i] *= np.exp(complex(0, 1) * defect_prod)
+                self.etas[eta_i] *= np.exp(complex(0, 1) * defect_prod)
 
     def get_defect_field(self, defects: list[dict], config: dict) -> np.array:
         """
@@ -212,11 +224,27 @@ class FFTBaseSim:
             burgers_vector = np.array(defect["burgers_vector"])
             offset = np.array(defect["offset"])
 
-            ux += initialize.line_defect_x(
-                self.xm, self.ym, defect["poisson_ratio"], burgers_vector[0], offset
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+
+                def_x = initialize.line_defect_x(
+                    self.xm, self.ym, defect["poisson_ratio"], burgers_vector[0], offset
+                )
+                def_y = initialize.line_defect_y(
+                    self.xm, self.ym, defect["poisson_ratio"], burgers_vector[1], offset
+                )
+
+            ux += np.nan_to_num(
+                def_x,
+                nan=0,
+                posinf=burgers_vector[0] / 2,
+                neginf=-burgers_vector[0] / 2,
             )
-            uy += initialize.line_defect_y(
-                self.xm, self.ym, defect["poisson_ratio"], burgers_vector[1], offset
+            uy += np.nan_to_num(
+                def_y,
+                nan=0,
+                posinf=burgers_vector[1] / 2,
+                neginf=-burgers_vector[1] / 2,
             )
 
         return np.array([ux, uy])
@@ -360,15 +388,16 @@ class FFTBaseSim:
             np.array:
         """
 
-        lagr = self.lagr_hat(eta_i)
+        lagr = self.etas_lin_part[eta_i]
         n = self.n_hat(eta_i)
 
-        exp_lagr = np.exp(lagr * self.dt)
+        denom = 1.0 - self.dt * lagr
+        n_eta = self.etas_hat[eta_i] + self.dt * n
+        n_eta = n_eta / denom
 
-        n_eta = exp_lagr * np.fft.fft2(self.etas[eta_i])
-        n_eta += ((exp_lagr - 1.0) / lagr) * n
+        real_part = np.fft.ifft2(n_eta, s=self.etas[0].shape)
 
-        return np.fft.ifft2(n_eta, s=self.etas[0].shape)
+        return real_part, n_eta
 
     def run_one_step(self):
         """
@@ -378,11 +407,25 @@ class FFTBaseSim:
         """
 
         n_etas = np.zeros(self.etas.shape, dtype=complex)
+        n_etas_fft = np.zeros(self.etas.shape, dtype=complex)
 
         for eta_i in range(self.eta_count):
-            n_etas[eta_i, :, :] = self.eta_routine(eta_i)
+            new_eta, new_eta_fft = self.eta_routine(eta_i)
+            n_etas[eta_i] = new_eta
+            n_etas_fft[eta_i] = new_eta_fft
 
         self.etas = n_etas
+        self.etas_hat = n_etas_fft
+
+    def equilibriate(self, timesteps):
+
+        old_dt = self.dt
+        self.dt = self.eq_dt
+
+        for _ in range(timesteps):
+            self.run_one_step()
+
+        self.dt = old_dt
 
     ##################
     ## IO FUNCTIONS ##
