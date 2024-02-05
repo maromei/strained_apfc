@@ -291,8 +291,9 @@ def theta_thread(
         ### run sim ###
         ###############
 
-        for _ in range(config.get("eqSteps", 0)):
-            sim.run_one_step()
+        if not continue_sim:
+            eq_steps = config.get("eqSteps", 0)
+            sim.equilibriate(eq_steps)
 
         if not ignore_first_write:
             sim.write(theta_path)
