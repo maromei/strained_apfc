@@ -283,6 +283,12 @@ def get_defects_center(
     """
     Extracts the position of defects / variations in the original array.
 
+    .. warning::
+
+        While this function does identify the defects well, the value of
+        the defect center is not very accurate. For a more accurate version
+        see the :py:func:`get_defects_center_by_minimum` function.
+
     Args:
         arr (np.ndarray): The array to check for defects / variations.
             The array should have roughly the same value everywhere, but the
@@ -316,3 +322,61 @@ def get_defects_center(
         defect_centers[i, 1] = pos[1]
 
     return defect_centers
+
+
+def get_defects_center_by_minimum(
+    arr: np.ndarray, xm: np.ndarray, ym: np.ndarray, expand_radius: float | None = None
+):
+    def twoD_Gaussian(xy, x0, y0, a, sigma_x, sigma_y):
+
+        x, y = xy
+
+        x_exp = (x - x0) ** 2 / (2 * sigma_x)
+        y_exp = (y - y0) ** 2 / (2 * sigma_y)
+
+        ret = np.exp(-(x_exp + y_exp))
+        ret /= np.max(ret)
+        ret *= a
+
+        return ret.ravel()
+
+    centers = get_defects_center(arr, xm, ym, expand_radius)
+
+    improved_centers = []
+    for i in range(centers.shape[0]):
+
+        xm_extract = xm.copy()
+        ym_extract = ym.copy()
+        arr_extract = arr.copy()
+
+        for j in range(centers.shape[0]):
+
+            dist_to_i = (xm_extract - centers[i, 0]) ** 2 + (
+                ym_extract - centers[i, 1]
+            ) ** 2
+            dist_to_j = (xm_extract - centers[j, 0]) ** 2 + (
+                ym_extract - centers[j, 1]
+            ) ** 2
+
+            closer_to_i = dist_to_i <= dist_to_j
+            xm_extract = xm_extract[closer_to_i]
+            ym_extract = ym_extract[closer_to_i]
+            arr_extract = arr_extract[closer_to_i]
+
+        # initial_guess = (centers[i, 0], centers[i, 1], 1)
+        initial_guess = (centers[i, 0], centers[i, 1], -1, 1, 1)
+
+        arr_extract -= np.min(arr_extract)
+        arr_extract /= np.max(arr_extract)
+        arr_extract -= 1
+
+        popt, pcov = scipy.optimize.curve_fit(
+            twoD_Gaussian,
+            (xm_extract, ym_extract),
+            arr_extract.ravel(),
+            p0=initial_guess,
+        )
+
+        improved_centers.append((popt[0], popt[1]))
+
+    return np.array(improved_centers)
