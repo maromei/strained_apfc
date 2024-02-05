@@ -129,10 +129,8 @@ class FFTBaseSim:
             self.init_eta_grain(config)
 
         self.etas_hat = np.zeros(self.etas.shape, dtype=complex)
-        self.etas_lin_part = np.zeros(self.etas.shape, dtype=complex)
         for i in range(self.eta_count):
             self.etas_hat[i] = np.fft.fft2(self.etas[i])
-            self.etas_lin_part[i] = self.lagr_hat(i)
 
     def build_gsq_hat(self):
         """
@@ -168,6 +166,10 @@ class FFTBaseSim:
             self.build_eta(config)
 
         self.build_gsq_hat()
+
+        self.etas_lin_part = np.zeros(self.etas.shape, dtype=complex)
+        for i in range(self.eta_count):
+            self.etas_lin_part[i] = self.lagr_hat(i)
 
     ########################
     ## INIT ETA FUNCTIONS ##
