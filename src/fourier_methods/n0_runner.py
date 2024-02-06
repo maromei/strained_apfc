@@ -613,7 +613,7 @@ class FFTN0Sim:
         n = np.fft.fft2(n)
 
         denom = 1.0 - self.dt * self.laplace_op * lagr
-        n_n0 = np.fft.fft2(self.n0) + self.dt * self.laplace_op * n
+        n_n0 = self.n0_hat + self.dt * self.laplace_op * n
         n_n0 = n_n0 / denom
 
         real_part = np.real(np.fft.ifft2(n_n0, s=self.etas[0].shape))
