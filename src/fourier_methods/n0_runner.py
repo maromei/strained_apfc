@@ -151,10 +151,6 @@ class FFTN0Sim:
         else:
             self.init_eta_rotated_grain(config)
 
-        self.etas_hat = np.zeros(self.etas.shape, dtype=complex)
-        for i in range(self.eta_count):
-            self.etas_hat[i] = np.fft.fft2(self.etas[i])
-
     def build_gsq_hat(self):
         """
         Initializess the :math:`\widehat{\mathcal{G}^2_m}` operator.
@@ -210,6 +206,10 @@ class FFTN0Sim:
             self.init_eta_file(config)
         else:
             self.build_eta(config)
+
+        self.etas_hat = np.zeros(self.etas.shape, dtype=complex)
+        for i in range(self.eta_count):
+            self.etas_hat[i] = np.fft.fft2(self.etas[i])
 
         self.build_gsq_hat()
         self.build_laplace_op()
