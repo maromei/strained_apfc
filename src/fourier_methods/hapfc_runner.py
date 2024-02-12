@@ -1,29 +1,16 @@
 import numpy as np
+import warnings
 from calculations import initialize, params
 from manage import read_write as rw
+from calculations.operator import gradient_periodic_BC
 
 
 class FFTHydroAPFCSim:
     """
-    This class implements the Hydro-APFC model using fourier methods.
-    For more info about the model see the :ref:`ch:hydro_apfc` section.
+    This class is supposed to run a FFT simulations with
+    :math:`n_0`, where
 
-    General Idea
-    ------------
-
-    In each timestep the average density and amplitudes are updated first.
-    The scheme for the velocity requries heavy computation of variations
-    (:math:`\\frac{\\delta F}{\\delta n_0}` and
-    :math:`\\frac{\\delta F}{\\delta \\eta_m^*}`).
-    These variations are almost fully computed in the average density and
-    amplitude update steps. To not recompute anything, the average densities
-    and amplitudes are updated first, and the relevant non-linear parts
-    are saved in :py:attr:`eta_non_lin_term` and :py:attr:`n0_non_lin_term`.
-    The variations are then reconstructed in the velocity update.
-
-    As a consequence the non-linear parts need to be fully explicit. Not only
-    the quantitiy of the variation needs to be treated explicetly, but every
-    single time dependant field will be taken from the last timestep.
+    For more information see the :ref:`ch:scheme_ampl_n0` section.
     """
 
     # Default config for db0 0.044
@@ -36,6 +23,8 @@ class FFTHydroAPFCSim:
     Bx: float = 0.988  #: :math:`B^x` param in eq. :eq:`eqn:apfc_flow_constants`
     beta_sqrt: float = 1  #: :math:`\sqrt\beta` in eq. :eq:`eqn:apfc_flow_constants`
 
+    init_n0: float = 0.0
+
     mu_b: float = (
         1  #: dissipation parameter :math:`\mu_B` in eq. :eq:`eqn:hydro_apfc_flow_v`
     )
@@ -47,13 +36,13 @@ class FFTHydroAPFCSim:
         1  #: dissipation parameter :math:`\mu_n` in eq. :eq:`eqn:hydro_apfc_flow_eta_n`
     )
 
-    init_n0: float = 0.0
-
     #: The bounds of the domain :math:`[-\text{xlim}, \text{xlim}]^2`
     xlim: int = 400
     pt_count_x = 1000  #: number of points in x-direction
     pt_count_y = 1000  #: number of points in y-direction
     dt: float = 0.5  #: timestep
+    eq_dt: float = 0.5  #: timestep for the equilibrium steps
+    velocity_dt: float = 0.001  #: timestep for velocity subroutine
 
     #: reciprical vector; see eq. :eq:`eqn:apfc_flow_constants`.
     #: Should have shape :code:`(eta_count, 2)`
@@ -62,13 +51,15 @@ class FFTHydroAPFCSim:
     #: the amplitudes. Should have
     #: shape :code:`(eta_count, pt_count_x, pt_count_y)`
     etas: np.array = None
+    etas_hat: np.ndarray = None
 
     #: average densities. Should have
     #: shape :code:`(pt_count_x, pt_count_y)`
     n0: np.array = None
+    n0_hat: np.ndarray = None
 
-    #: velocity field
-    velocity: np.array = None
+    velocity: np.ndarray = None
+    velocity_hat: np.ndarray = None
 
     #: The :math:`\widehat{\mathcal{G}_m^2}` operator.
     #: See eq. :eq:`eqn:g_sq_op_fourier`
@@ -85,32 +76,9 @@ class FFTHydroAPFCSim:
 
     eta_count: int = 0  #: number of etas
 
-    dx: float  #: grid spacing
-    is_1d: bool  #: Whether it is a 1d simulation
-
-    #: saves the constant fourier transformed linear part
-    #: of the amplitude flow equation. Should be precomputed on init.
-    eta_lagr_hat: np.ndarray
-
-    #: saves the constant fourier transformed linear part
-    #: of the average density flow equation. Should be precomputed on init.
-    n0_lagr_hat: np.ndarray
-
-    #: saves the constant fourier transformed linear part
-    #: of the velocity flow equation. Should be precomputed on init.
-    v_lagr_hat: np.ndarray
-
-    #: This saves the non linear part of :math:`\frac{\delta F}{\delta \eta_m}`
-    #: Note that it does not save it for the entire hamiltonian!
-    #: It should be updated in the :py:meth:`eta_routine` function,
-    #: and will later be used for the velocity calculation.
-    eta_non_lin_term: np.ndarray
-
-    #: This saves the non linear part of :math:`\frac{\delta F}{\delta n_0}`
-    #: Note that it does not save it for the entire hamiltonian!
-    #: It should be updated in the :py:meth:`n0_routine`, and will later be used
-    #: for the velocity calculation.
-    n0_non_lin_term: np.ndarray
+    etas_lin_part: np.ndarray = None
+    n0_lin_part: np.ndarray = None
+    vel_lin_part: np.ndarray = None
 
     def __init__(self, config: dict, con_sim: bool = False):
         """
@@ -139,32 +107,28 @@ class FFTHydroAPFCSim:
         self.Bx = config.get("Bx")
         self.lbd = self.Bx + self.dB0
 
-        self.xlim = config.get("xlim", self.xlim)
-        self.pt_count_x = config.get("numPtsX", self.pt_count_x)
-        self.pt_count_y = config.get("numPtsY", self.pt_count_y)
-        self.dt = config.get("dt", self.dt)
-
-        self.is_1d = self.pt_count_y == 1
-
-        if self.is_1d:
-            raise NotImplementedError("HydroAPFC in 1D is currently not supported.")
-
-        self.G = np.array(config["G"])
-        self.eta_count = self.G.shape[0]
-
-        self.config = config.copy()
-
         self.mu_b = config.get("mu_b", self.mu_b)
         self.mu_s = config.get("mu_s", self.mu_s)
         self.mu_eta = config.get("mu_eta", self.mu_eta)
         self.mu_n0 = config.get("mu_n0", self.mu_n0)
+
+        self.xlim = config.get("xlim", self.xlim)
+        self.pt_count_x = config.get("numPtsX", self.pt_count_x)
+        self.pt_count_y = config.get("numPtsY", self.pt_count_y)
+        self.dt = config.get("dt", self.dt)
+        self.eq_dt = config.get("eqTimeStep", self.dt)
+        self.velocity_dt = config.get("velocity_dt", self.velocity_dt)
+
+        self.G = np.array(config["G"])
+        self.eta_count = self.G.shape[0]
+
+        self.config = config
 
         ##############
         ## BUILDING ##
         ##############
 
         self.build(con_sim, config)
-        self.precalculations()
 
     ########################
     ## BUILDING FUNCTIONS ##
@@ -184,8 +148,9 @@ class FFTHydroAPFCSim:
 
         self.xm, self.ym = np.meshgrid(x, y)
 
-        self.dx = np.diff(x)[0]
-        freq_x = np.fft.fftfreq(len(x), self.dx)
+        dx = np.diff(x)[0]
+        self.dx = dx
+        freq_x = np.fft.fftfreq(len(x), dx)
 
         if self.pt_count_y <= 1:
             freq_y = [0.0]
@@ -208,7 +173,7 @@ class FFTHydroAPFCSim:
         if self.pt_count_y <= 1:
             self.init_eta_center_line(config)
         else:
-            self.init_eta_grain(config)
+            self.init_eta_rotated_grain(config)
 
     def build_gsq_hat(self):
         """
@@ -238,6 +203,8 @@ class FFTHydroAPFCSim:
         else:
             self.n0 = np.ones(self.xm.shape, dtype=float) * self.init_n0
 
+        self.n0_hat = np.fft.fft2(self.n0)
+
     def build_laplace_op(self):
         """
         Builds the laplace operator
@@ -264,13 +231,24 @@ class FFTHydroAPFCSim:
         else:
             self.build_eta(config)
 
+        self.etas_hat = np.zeros(self.etas.shape, dtype=complex)
+        for i in range(self.eta_count):
+            self.etas_hat[i] = np.fft.fft2(self.etas[i])
+
         self.build_gsq_hat()
         self.build_laplace_op()
         self.build_n0(con_sim, config)
         self.build_velocity_field(con_sim)
 
+        self.n0_non_lin_term = np.zeros(self.n0.shape, dtype=float)
         self.eta_non_lin_term = np.zeros(self.etas.shape, dtype=complex)
-        self.n0_non_lin_term = np.zeros(self.n0.shape)
+
+        self.etas_lin_part = np.zeros(self.etas.shape, dtype=complex)
+        for i in range(self.eta_count):
+            self.etas_lin_part[i] = self.lagr_hat(i)
+
+        self.n0_lin_part = self.get_n0_lin_part()
+        self.vel_lin_part = self.get_velocity_lin_hat()
 
     def build_velocity_field(self, con_sim: bool):
         """
@@ -290,18 +268,7 @@ class FFTHydroAPFCSim:
         else:
             self.velocity = np.zeros(shape)
 
-    def precalculations(self):
-        """
-        Does calculations for constants that get reused constantly in the
-        simulation.
-        """
-
-        self.eta_lagr_hat = np.zeros(self.etas.shape, dtype=complex)
-        for eta_i in range(self.eta_count):
-            self.eta_lagr_hat[eta_i] = self.lagr_hat(eta_i)
-
-        self.n0_lagr_hat = self.get_n0_lin_term()
-        self.v_lagr_hat = self.get_velocity_lin_term()
+        self.velocity_hat = self.vec2d_component_wise_fft(self.velocity)
 
     ########################
     ## INIT ETA FUNCTIONS ##
@@ -331,10 +298,56 @@ class FFTHydroAPFCSim:
                 config,
             )
 
-            defect_prod = self.G[eta_i, 0] * defect_field[0]
-            defect_prod += self.G[eta_i, 1] * defect_field[1]
+            if defects is not None:
+                defect_prod = self.G[eta_i, 0] * defect_field[0]
+                defect_prod += self.G[eta_i, 1] * defect_field[1]
 
-            self.etas[eta_i] *= np.exp(complex(0, 1) * defect_prod)
+                self.etas[eta_i] *= np.exp(complex(0, 1) * defect_prod)
+
+    def init_eta_rotated_grain(self, config: dict):
+
+        self.init_eta_grain(config)
+        rot_config = config.copy()
+
+        theta = config.get("grainRotationTheta")
+        radius = config.get("grainRotationRadius")
+
+        if theta is None or radius is None:
+            return
+
+        rot = np.array(
+            [[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]]
+        )
+        G = np.array(config["G"])
+        G_rot = np.zeros(G.shape)
+
+        for eta_i in range(self.eta_count):
+            G_rot[eta_i] = rot.dot(G[eta_i])
+
+        rot_config["G"] = G_rot.tolist()
+        rot_config["initRadius"] = radius
+
+        rot_defects = rot_config.get("grainRotationDefects")
+        if rot_defects is not None:
+            defect_field = self.get_defect_field(rot_defects, rot_config)
+
+        for eta_i in range(self.eta_count):
+            rot_grain = initialize.single_grain(
+                self.xm,
+                self.ym,
+                rot_config,
+            )
+
+            if rot_defects is not None:
+                defect_prod = G_rot[eta_i, 0] * defect_field[0]
+                defect_prod += G_rot[eta_i, 1] * defect_field[1]
+
+                rot_grain *= np.exp(complex(0, 1) * defect_prod)
+
+            is_not_zero = rot_grain == config["initEta"]
+            eta = self.etas[eta_i]
+            eta[is_not_zero] = rot_grain[is_not_zero]
+            self.etas[eta_i] = eta
 
     def get_defect_field(self, defects: list[dict], config: dict) -> np.array:
         """
@@ -357,11 +370,27 @@ class FFTHydroAPFCSim:
             burgers_vector = np.array(defect["burgers_vector"])
             offset = np.array(defect["offset"])
 
-            ux += initialize.line_defect_x(
-                self.xm, self.ym, defect["poisson_ratio"], burgers_vector[0], offset
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+
+                def_x = initialize.line_defect_x(
+                    self.xm, self.ym, defect["poisson_ratio"], burgers_vector[0], offset
+                )
+                def_y = initialize.line_defect_y(
+                    self.xm, self.ym, defect["poisson_ratio"], burgers_vector[1], offset
+                )
+
+            ux += np.nan_to_num(
+                def_x,
+                nan=0,
+                posinf=burgers_vector[0] / 2,
+                neginf=-burgers_vector[0] / 2,
             )
-            uy += initialize.line_defect_y(
-                self.xm, self.ym, defect["poisson_ratio"], burgers_vector[1], offset
+            uy += np.nan_to_num(
+                def_y,
+                nan=0,
+                posinf=burgers_vector[1] / 2,
+                neginf=-burgers_vector[1] / 2,
             )
 
         return np.array([ux, uy])
@@ -405,6 +434,33 @@ class FFTHydroAPFCSim:
     #########################
     ## SIM FUNCTIONS - ETA ##
     #########################
+
+    def get_additional_hydro_flow_term_eta(
+        self, eta_i: int, velocity: np.ndarray
+    ) -> np.ndarray:
+        """
+        Calculates :math:`\\mathcal{Q}_m (\\eta_m \\boldsymbol{v})` with
+        :math:`\\mathcal{Q}_m = \\nabla + i \\boldsymbol{G}_m`
+
+        Args:
+            eta_i (int): m index in equation above
+            velocity (np.ndarray): velocity field :math:`\\boldsymbol{v}` to use
+
+        Returns:
+            np.ndarray:
+        """
+
+        eta_v_prod_x = self.etas[eta_i] * velocity[0]
+        eta_v_prod_y = self.etas[eta_i] * velocity[1]
+
+        deriv_x = gradient_periodic_BC(eta_v_prod_x, self.dx, axis=0)
+        deriv_y = gradient_periodic_BC(eta_v_prod_y, self.dx, axis=1)
+
+        g_prod = self.G[eta_i, 0] * eta_v_prod_x
+        g_prod += self.G[eta_i, 1] * eta_v_prod_y
+        g_prod = complex(0, 1) * g_prod.astype(complex)
+
+        return g_prod + deriv_x + deriv_y
 
     def g_sq_hat_fnc(self, eta_i: int) -> np.array:
         """
@@ -476,9 +532,9 @@ class FFTHydroAPFCSim:
         n *= self.etas[eta_i]
         n += 2.0 * self.C(self.n0) * eta_conj1 * eta_conj2
 
-        self.eta_non_lin_term[eta_i] = n.copy()
+        self.eta_non_lin_term[eta_i] = np.copy(n)
 
-        n *= -1.0 * self.mu_eta * np.linalg.norm(self.G[eta_i]) ** 2
+        n *= -1.0 * np.linalg.norm(self.G[eta_i]) ** 2
         n -= self.get_additional_hydro_flow_term_eta(eta_i, self.velocity)
 
         n = np.fft.fft2(n)
@@ -499,33 +555,9 @@ class FFTHydroAPFCSim:
         """
 
         lagr = self.A * self.g_sq_hat[eta_i] + self.dB0
-        lagr *= self.mu_eta
         return -1.0 * lagr * np.linalg.norm(self.G[eta_i]) ** 2
 
-    def get_additional_hydro_flow_term_eta(
-        self, eta_i: int, velocity: np.ndarray
-    ) -> np.ndarray:
-        """
-        Calculates :math:`\\mathcal{Q}_m (\\eta_m \\boldsymbol{v})` with
-        :math:`\\mathcal{Q}_m = \\nabla + i \\boldsymbol{G}_m`
-
-        Args:
-            eta_i (int): m index in equation above
-            velocity (np.ndarray): velocity field :math:`\\boldsymbol{v}` to use
-
-        Returns:
-            np.ndarray:
-        """
-
-        deriv_x = np.gradient(self.etas[eta_i] * velocity[0], self.dx, axis=0)
-        deriv_y = np.gradient(self.etas[eta_i] * velocity[1], self.dx, axis=1)
-
-        g_prod = self.G[eta_i, 0] * velocity[0] + self.G[eta_i, 1] * velocity[1]
-        g_prod = complex(0, 1) * self.etas[eta_i] * g_prod.astype(complex)
-
-        return g_prod + deriv_x + deriv_y
-
-    def eta_routine(self, eta_i: int) -> np.array:
+    def eta_routine(self, eta_i: int) -> tuple[np.array, np.array]:
         """
         Runs one time step for one single amplitude.
         See :ref:`ch:scheme_ampl_n0`
@@ -537,17 +569,39 @@ class FFTHydroAPFCSim:
             np.array:
         """
 
+        lagr = self.etas_lin_part[eta_i]
         n = self.n_hat(eta_i)
 
-        denom = 1.0 - self.dt * self.eta_lagr_hat[eta_i]
-        n_eta = np.fft.fft2(self.etas[eta_i]) + self.dt * n
+        denom = 1.0 - self.dt * lagr
+        n_eta = self.etas_hat[eta_i] + self.dt * n
         n_eta = n_eta / denom
 
-        return np.fft.ifft2(n_eta, s=self.etas[0].shape)
+        real_part = np.fft.ifft2(n_eta, s=self.etas[0].shape)
+
+        return real_part, n_eta
 
     ########################
     ## SIM FUNCTIONS - N0 ##
     ########################
+
+    def get_additional_hydro_flow_term_n0(
+        self, n0: np.ndarray, velocity: np.ndarray
+    ) -> np.ndarray:
+        """
+        Calculates :math:`\\nabla (n_0 \\boldsymbol{v})`
+
+        Args:
+            n0 (np.ndarray):
+            velocity (np.ndarray):
+
+        Returns:
+            np.ndarray:
+        """
+
+        deriv_x = gradient_periodic_BC(n0 * velocity[0], self.dx, axis=0)
+        deriv_y = gradient_periodic_BC(n0 * velocity[1], self.dx, axis=1)
+
+        return deriv_x + deriv_y
 
     def B(self, n0: np.array) -> np.array:
         """
@@ -598,7 +652,7 @@ class FFTHydroAPFCSim:
 
         eta_prod += np.conj(eta_prod)
 
-        return 2.0 * eta_prod
+        return 2.0 * np.real(eta_prod)
 
     def get_phi(self) -> np.array:
         """
@@ -612,41 +666,12 @@ class FFTHydroAPFCSim:
         for eta_i in range(self.eta_count):
             eta_sum += self.etas[eta_i] * np.conj(self.etas[eta_i])
 
-        return 2.0 * eta_sum
+        return 2.0 * np.real(eta_sum)
 
-    def get_additional_hydro_flow_term_n0(
-        self, n0: np.ndarray, velocity: np.ndarray
-    ) -> np.ndarray:
-        """
-        Calculates :math:`\\nabla (n_0 \\boldsymbol{v})`
+    def get_n0_lin_part(self) -> np.ndarray:
+        return self.lbd - self.A * self.laplace_op
 
-        Args:
-            n0 (np.ndarray):
-            velocity (np.ndarray):
-
-        Returns:
-            np.ndarray:
-        """
-
-        deriv_x = np.gradient(n0 * velocity[0], self.dx, axis=0)
-        deriv_y = np.gradient(n0 * velocity[1], self.dx, axis=1)
-
-        return deriv_x + deriv_y
-
-    def get_n0_lin_term(self) -> np.ndarray:
-        """
-        Calculates the linear part of the average density flow equation.
-
-        Returns:
-            np.ndarray:
-        """
-
-        lagr = self.lbd - self.Bx * self.laplace_op
-        lagr *= self.mu_n0
-
-        return lagr
-
-    def n0_routine(self) -> np.array:
+    def n0_routine(self) -> tuple[np.ndarray, np.ndarray]:
         """
         Computes the new :math:`n_0`.
 
@@ -657,29 +682,34 @@ class FFTHydroAPFCSim:
         phi = self.get_phi()
         eta_prod = self.get_eta_prod()
 
+        lagr = self.n0_lin_part
+
         n = -phi * self.t
         n += 3.0 * self.v * eta_prod
         n -= self.t * self.n0**2
         n += self.v * self.n0**3
         n += phi * 3.0 * self.v * self.n0
-        self.n0_non_lin_term = n.copy()
+
+        self.n0_non_lin_term = np.copy(n)
+
         n += 0.5 * (self.velocity[0] ** 2 + self.velocity[1] ** 2)
 
-        n *= self.mu_n0
-        n -= self.get_additional_hydro_flow_term_n0(self.n0, self.velocity)
-        n = np.fft.fft2(n)
+        n = self.laplace_op * np.fft.fft2(n)
+        n -= np.fft.fft2(self.get_additional_hydro_flow_term_n0(self.n0, self.velocity))
 
-        denom = 1.0 - self.dt * self.laplace_op * self.n0_lagr_hat
-        n_n0 = np.fft.fft2(self.n0) + self.dt * self.laplace_op * n
+        denom = 1.0 - self.dt * self.laplace_op * lagr
+        n_n0 = self.n0_hat + self.dt * n
         n_n0 = n_n0 / denom
 
-        return np.real(np.fft.ifft2(n_n0, s=self.etas[0].shape))
+        real_part = np.real(np.fft.ifft2(n_n0, s=self.etas[0].shape))
+
+        return real_part, n_n0
 
     ##############################
     ## SIM FUNCTIONS - VELOCITY ##
     ##############################
 
-    def get_velocity_lin_term(self) -> np.ndarray:
+    def get_velocity_lin_hat(self) -> np.ndarray:
         """
         Calculates the linear term for the velocity flow equation.
         Does this for both x and y compontents
@@ -719,11 +749,26 @@ class FFTHydroAPFCSim:
             np.ndarray:
         """
 
-        lin_part_hat = self.eta_lagr_hat[eta_i] / self.mu_eta
-        eta_hat = np.fft.fft2(self.etas[eta_i])
-        lin_part = np.fft.ifft2(lin_part_hat * eta_hat, s=self.etas[0].shape)
+        def g_op(arr, h, G, beta_sqrt, fac=1):
 
-        variation = -lin_part + self.eta_non_lin_term[eta_i]
+            dx = gradient_periodic_BC(arr, h, 0)
+            dy = gradient_periodic_BC(arr, h, 1)
+
+            d2x = gradient_periodic_BC(dx, h, 0)
+            d2y = gradient_periodic_BC(dy, h, 1)
+
+            l = beta_sqrt * (d2x + d2y)
+            l += fac * 2 * complex(0, 1) * (G[0] * dx + G[1] * dy)
+
+            return l
+
+        lin_part = g_op(self.etas[eta_i], self.dx, self.G[eta_i], self.beta_sqrt)
+        lin_part = g_op(lin_part, self.dx, self.G[eta_i], self.beta_sqrt)
+        lin_part = self.A * lin_part + self.dB0 * self.etas[eta_i]
+
+        variation = lin_part + self.eta_non_lin_term[eta_i]
+        variation *= np.linalg.norm(self.G[eta_i]) ** 2
+
         return variation
 
     def calc_f_n0_variation(self) -> np.ndarray:
@@ -737,44 +782,45 @@ class FFTHydroAPFCSim:
             np.ndarray:
         """
 
-        lin_part_hat = self.n0_lagr_hat / self.mu_n0
-        n0_hat = np.fft.fft2(self.n0)
-        lin_part = np.fft.ifft2(lin_part_hat * n0_hat, s=self.n0.shape)
+        dx = gradient_periodic_BC(self.n0, self.dx, 0)
+        dy = gradient_periodic_BC(self.n0, self.dx, 1)
 
+        d2x = gradient_periodic_BC(dx, self.dx, 0)
+        d2y = gradient_periodic_BC(dy, self.dx, 1)
+
+        lin_part = self.lbd * self.n0 - self.A * (d2x + d2y)
         variation = lin_part + self.n0_non_lin_term
-        return np.real(variation)
+
+        return variation
 
     def calc_f(self) -> np.ndarray:
-        """
-        Calculates eq. :eq:`eqn:hydro_non_linear_f` for the last timestep.
-
-        Returns:
-            np.ndarray:
-        """
 
         eta_sum = np.zeros(self.velocity.shape, dtype=complex)
         for eta_i in range(self.eta_count):
 
+            eta_conj = np.conj(self.etas[eta_i])
             eta_variation = self.calc_f_eta_variation(eta_i)
 
-            q_op_deriv = np.array(np.gradient(eta_variation, self.dx))
-            eta_variation[0] *= complex(0, 1) * self.G[eta_i, 0]
-            eta_variation[1] *= complex(0, 1) * self.G[eta_i, 1]
+            op = np.array(gradient_periodic_BC(eta_variation, self.dx))
 
-            op = q_op_deriv + eta_variation
-
-            eta_conj = np.conj(self.etas[eta_i])
+            op[0] += eta_variation * complex(0, 1) * self.G[eta_i, 0]
             op[0] *= eta_conj
+
+            op[1] += eta_variation * complex(0, 1) * self.G[eta_i, 1]
             op[1] *= eta_conj
 
-            eta_sum += op * np.conj(op)
+            eta_sum += op + np.conj(op)
         eta_sum = np.real(eta_sum)
 
         n0_variation = self.calc_f_n0_variation()
-        n0_gradient = np.array(np.gradient(n0_variation, self.dx))
+        n0_grad = np.array(gradient_periodic_BC(n0_variation, self.dx))
 
-        ret = self.n0 * n0_gradient + eta_sum
-        return -1.0 * ret
+        n0_grad[0] *= self.n0
+        n0_grad[1] *= self.n0
+
+        f = -n0_grad - eta_sum
+
+        return f
 
     def calc_advection_spatial_gradient(self, arr: np.ndarray) -> np.ndarray:
         """
@@ -787,10 +833,10 @@ class FFTHydroAPFCSim:
             np.ndarray:
         """
 
-        dx_x = np.gradient(arr[0], self.dx, axis=0)
-        dx_y = np.gradient(arr[1], self.dx, axis=0)
-        dy_x = np.gradient(arr[0], self.dx, axis=1)
-        dy_y = np.gradient(arr[1], self.dx, axis=1)
+        dx_x = gradient_periodic_BC(arr[0], self.dx, axis=0)
+        dx_y = gradient_periodic_BC(arr[1], self.dx, axis=0)
+        dy_x = gradient_periodic_BC(arr[0], self.dx, axis=1)
+        dy_y = gradient_periodic_BC(arr[1], self.dx, axis=1)
 
         ret = [arr[0] * dx_x + arr[1] * dy_x, arr[0] * dx_y + arr[1] * dy_y]
 
@@ -850,7 +896,7 @@ class FFTHydroAPFCSim:
         ret = [np.fft.ifft2(arr[0], s=shape), np.fft.ifft2(arr[1], s=shape)]
         return np.array(ret, dtype=complex)
 
-    def velocity_routine(self) -> np.ndarray:
+    def velocity_routine(self) -> tuple[np.ndarray, np.ndarray]:
         """
         One iteration for updating the velocity.
         The routine relies on :py:attr:`eta_non_lin_term` and
@@ -861,13 +907,18 @@ class FFTHydroAPFCSim:
             np.ndarray:
         """
 
-        n = self.calc_velocity_non_lin_part()
+        lagr = self.vel_lin_part
 
-        denom = 1.0 - self.dt * self.v_lagr_hat
-        n_v = self.vec2d_component_wise_fft(self.velocity) + self.dt * n
+        n = self.calc_velocity_non_lin_part()
+        n = self.vec2d_component_wise_fft(n)
+
+        denom = 1.0 - self.velocity_dt * lagr
+        n_v = self.velocity_hat + self.velocity_dt * n
         n_v = n_v / denom
 
-        return np.real(self.vec2d_component_wise_ifft(n_v, self.velocity[0].shape))
+        real_part = np.real(self.vec2d_component_wise_ifft(n_v, self.velocity[0].shape))
+
+        return real_part, n_v
 
     ###################
     ## SIM FUNCTIONS ##
@@ -885,30 +936,64 @@ class FFTHydroAPFCSim:
             np.ndarray:
         """
 
-        dx = np.gradient(arr, self.dx, axis=0)
-        d2xy = np.gradient(dx, self.dx, axis=1)
+        dx = gradient_periodic_BC(arr, self.dx, axis=0)
+        d2xy = gradient_periodic_BC(dx, self.dx, axis=1)
 
         return d2xy
+
+    def run_velocity_sub_steps(self):
+
+        num_t = int(self.dt / self.velocity_dt)
+        for _ in range(num_t):
+            self.velocity, self.velocity_hat = self.velocity_routine()
 
     def run_one_step(self):
         """
         Runs one entire timestep for the amplitudes and the average density.
         """
 
-        n_n0 = self.n0_routine()
-
-        if self.config["keepEtaConst"]:
-            return
+        new_n0, new_n0_fft = self.n0_routine()
 
         n_etas = np.zeros(self.etas.shape, dtype=complex)
-        for eta_i in range(self.eta_count):
-            n_etas[eta_i, :, :] = self.eta_routine(eta_i)
+        n_etas_fft = np.zeros(self.etas.shape, dtype=complex)
 
-        n_velocity = self.velocity_routine()
+        for eta_i in range(self.eta_count):
+            new_eta, new_eta_fft = self.eta_routine(eta_i)
+            n_etas[eta_i] = new_eta
+            n_etas_fft[eta_i] = new_eta_fft
+
+        self.run_velocity_sub_steps()
 
         self.etas = n_etas
-        self.n0 = n_n0
-        self.velocity = n_velocity
+        self.etas_hat = n_etas_fft
+
+        self.n0 = new_n0
+        self.n0_hat = new_n0_fft
+
+    def equilibriate(self, timesteps):
+
+        old_dt = self.dt
+        self.dt = self.eq_dt
+
+        for _ in range(timesteps):
+
+            new_n0, new_n0_fft = self.n0_routine()
+
+            n_etas = np.zeros(self.etas.shape, dtype=complex)
+            n_etas_fft = np.zeros(self.etas.shape, dtype=complex)
+
+            for eta_i in range(self.eta_count):
+                new_eta, new_eta_fft = self.eta_routine(eta_i)
+                n_etas[eta_i] = new_eta
+                n_etas_fft[eta_i] = new_eta_fft
+
+            self.etas = n_etas
+            self.etas_hat = n_etas_fft
+
+            self.n0 = new_n0
+            self.n0_hat = new_n0_fft
+
+        self.dt = old_dt
 
     ##################
     ## IO FUNCTIONS ##
