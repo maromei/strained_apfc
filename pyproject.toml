@@ -31,6 +31,9 @@ Source = "https://github.com/maromei/strained_apf"
 [tool.hatch.version]
 path = "src/__about__.py"
 
+[tool.hatch.build.target.wheel]
+packages = ["src/strained_apfc"]
+
 #######################
 ### COVERAGE CONFIG ###
 #######################
