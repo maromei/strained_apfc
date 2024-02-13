@@ -48,7 +48,7 @@ directory = "tests/output/coverage"
 [tool.hatch.envs.default]
 
 [tool.hatch.envs.default.scripts]
-fft-sim = "python src/apfc-run-fft.py {args}"
+fft-sim = "python src/strained_apfc/apfc-run-fft.py {args}"
 
 [tool.hatch.envs.default.env-vars]
 
@@ -116,6 +116,6 @@ cov = """
   pytest tests/ \
   --cov-report html --cov-report term \
   --cov-config=pyproject.toml \
-  --cov=src
+  --cov=strained_apfc
 """
 show-cov-html = "firefox tests/output/coverage/index.html"
