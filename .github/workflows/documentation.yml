@@ -6,6 +6,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
+      - name: Fix setup tools
+        run: |
+          apt install python-setuptools
       - name: Install dependencies
         run: |
           pip install hatch
