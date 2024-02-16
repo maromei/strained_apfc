@@ -81,6 +81,13 @@ parser.add_argument(
     help="Applies values from the parameterset with the given index.",
 )
 
+parser.add_argument(
+    "-pnl",
+    "--print-progress-new-line",
+    action="store_true",
+    help=("If True, the progress string will always print a new line."),
+)
+
 args = parser.parse_args()
 
 ######################
@@ -97,6 +104,7 @@ def run_sim(
     continuesim: bool,
     applyparamset: bool,
     keepdir: bool,
+    print_on_new_line: bool = False,
 ):
 
     thread_list = fft_sim.initialize_sim_threads(
@@ -122,7 +130,7 @@ def run_sim(
         thread_list[i].start()
 
     while fft_sim.are_processes_running(thread_list):
-        fft_sim.print_progress_string()
+        fft_sim.print_progress_string(not print_on_new_line)
         time.sleep(5)
 
     sys.stdout.write(f"\n")
@@ -222,6 +230,7 @@ if config.get("vary", False):
             args.continuesim,
             args.applyparamset,
             args.keepdir,
+            args.print_progress_new_line,
         )
 
         print("")  # Just one empty line for better terminal readability.
@@ -260,4 +269,5 @@ else:
         args.continuesim,
         args.applyparamset,
         args.keepdir,
+        args.print_progress_new_line,
     )

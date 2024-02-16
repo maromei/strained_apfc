@@ -38,15 +38,23 @@ def are_processes_running(thread_list: list[mp.Process]) -> bool:
     return False
 
 
-def print_progress_string():
+def print_progress_string(add_carry_return: bool = True):
     """
     Takes the global :py:data:`sim.fft_sim.progress_list` and prints
     the values to a string.
+
+    Args:
+        add_carry_return (bool): If True, then the progress precentage will
+            be printed on the same line.
     """
 
     prog_strs = [f"{n:5.1f}%" for n in progress_list]
     prog_strs = " ".join(prog_strs)
-    sys.stdout.write(f"{prog_strs}\r")
+    if add_carry_return:
+        sys.stdout.write(f"{prog_strs}\r")
+    else:
+        sys.stdout.write(f"{prog_strs}")
+
     sys.stdout.flush()
 
 
