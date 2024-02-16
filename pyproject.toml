@@ -34,6 +34,27 @@ path = "src/__about__.py"
 [tool.hatch.build.target.wheel]
 packages = ["src/strained_apfc"]
 
+#####################
+### POETRY CONFIG ###
+#####################
+
+[tool.poetry]
+name = "strained_apfc"
+version = "1.0.0"
+description = ""
+authors = [
+  "maromei <maromei@proton.me>"
+]
+packages = [
+  {include = "strained_apfc", from="src"}
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy = "^1.26.0"
+pandas = "^2.1.0"
+scipy = "^1.11.2"
+
 #######################
 ### COVERAGE CONFIG ###
 #######################
