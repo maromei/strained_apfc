@@ -53,7 +53,7 @@ def print_progress_string(add_carry_return: bool = True):
     if add_carry_return:
         sys.stdout.write(f"{prog_strs}\r")
     else:
-        sys.stdout.write(f"{prog_strs}")
+        sys.stdout.write(f"{prog_strs}\n")
 
     sys.stdout.flush()
 
