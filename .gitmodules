@@ -1,0 +1,3 @@
+[submodule "latex"]
+	path = latex
+	url = git@github.com:maromei/strained_apfc_latex.git
