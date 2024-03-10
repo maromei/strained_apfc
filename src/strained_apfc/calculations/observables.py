@@ -17,7 +17,7 @@ def calc_surf_en_1d(
     config = config.copy()
     eta_count = etas.shape[0]
 
-    is_n0_sim = config["simType"] in ["n0", "hydro"]
+    is_n0_sim = config["simType"] in ["n0", "hydro", "hydro_simple"]
 
     ##########################
     ### get positive range ###

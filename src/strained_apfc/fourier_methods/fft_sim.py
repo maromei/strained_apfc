@@ -10,6 +10,7 @@ from calculations import initialize
 from .base_runner import FFTBaseSim
 from .n0_runner import FFTN0Sim
 from .hapfc_runner import FFTHydroAPFCSim
+from .hapfc_simple_runner import FFTHydroSimpleAPFCSim
 
 from .parameter_sets import PARAM_SETS
 
@@ -287,6 +288,8 @@ def theta_thread(
             sim = FFTN0Sim(config, continue_sim)
         elif sim_type == "hydro":
             sim = FFTHydroAPFCSim(config, continue_sim)
+        elif sim_type == "hydro_simple":
+            sim = FFTHydroSimpleAPFCSim(config, continue_sim)
         else:
             sim = FFTBaseSim(config, continue_sim)
 
