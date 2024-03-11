@@ -247,7 +247,7 @@ parser.add_argument(
     help="Contains config.json"
 )
 
-args = parser.parse_args
+args = parser.parse_args()
 config_path = Path(args.path)
 
 VIS_CONFIG: dict = None
