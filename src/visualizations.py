@@ -1234,8 +1234,8 @@ def animate_diff_phi_density(
 
 # %% # Setup Animation
 
-FFMpegWriter = manimation.writers["ffmpeg"]
-writer = FFMpegWriter(fps=anim_fps)
+FFMpegWriter = None #manimation.writers["ffmpeg"]
+writer = None #FFMpegWriter(fps=anim_fps)
 
 config = utils.get_config(sim_path)
 
