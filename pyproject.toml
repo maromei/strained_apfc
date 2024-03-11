@@ -73,7 +73,6 @@ directory = "tests/output/coverage"
 
 [tool.hatch.envs.default.scripts]
 fft-sim = "python src/strained_apfc/apfc-run-fft.py {args}"
-vis-sim = "python src/visualizations.py {args}"
 
 [tool.hatch.envs.default.env-vars]
 
@@ -144,3 +143,13 @@ cov = """
   --cov=strained_apfc
 """
 show-cov-html = "firefox tests/output/coverage/index.html"
+
+[tool.hatch.envs.plot]
+extra-dependencies = [
+  "scipy",
+  "matplotlib",
+  "seaborn"
+]
+
+[tool.hatch.envs.plot.scripts]
+vis-sim = "python src/visualizations.py {args}"
