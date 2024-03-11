@@ -14,7 +14,7 @@ from mpl_toolkits.axes_grid1.inset_locator import (
 )
 
 plt.rcParams.update({
-    "text.usetex": True,
+    "text.usetex": False,
     "font.family": "Helvetica"
 })
 plt.rc("text.latex", preamble=r"\usepackage{bm}")
