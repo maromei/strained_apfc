@@ -256,8 +256,6 @@ with open(config_path / "config.json") as f:
 
 # %% Settings
 
-# SETTINGS
-
 BASE_PATH = VIS_CONFIG["base_path"]
 sim_name = VIS_CONFIG["sim_name"]
 
@@ -273,8 +271,8 @@ show_plots = VIS_CONFIG["show_plots"]
 
 detect_defects = VIS_CONFIG["detect_defects"]
 defect_radius_extension: float = VIS_CONFIG["defect_radius_extension"] # can be None for no extension
-defect_indeces = range(VIS_CONFIG["defect_indeces_lower"], VIS_CONFIG["defect_indeces_upper"])  # can be None for all
-lin_fit_range = range(VIS_CONFIG["lin_fit_range_lower"], VIS_CONFIG["lin_fit_range_upper"]) # can be None for all
+defect_indeces = range(VIS_CONFIG["defect_indeces"][0], VIS_CONFIG["defect_indeces"][1])  # can be None for all
+lin_fit_range = range(VIS_CONFIG["lin_fit_range"][0], VIS_CONFIG["lin_fit_range"][1]) # can be None for all
 
 sim_path = f"{BASE_PATH}/{sim_name}"
 compare_path: str = f"{BASE_PATH}/{compare_name}"
