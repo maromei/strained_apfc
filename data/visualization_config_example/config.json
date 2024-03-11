@@ -5,7 +5,7 @@
     "fig_save_path": "",
     "index": -1,
     "dpi": 150,
-    "fix_min_max_kargs": {
+    "fix_min_max_kwargs": {
         "displacement": null,
         "stress": {"bin_nos": 1000, "pt_count_threshhold": 20},
         "comp_phi_density": null,
