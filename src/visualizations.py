@@ -263,8 +263,8 @@ compare_name: str|None = VIS_CONFIG["compare_name"]
 
 fig_save_path = Path(VIS_CONFIG["fig_save_path"]) / sim_name
 
-index = VIS_CONFIG["inded"]
-dpi = VIS_CONFIG["spi"]
+index = VIS_CONFIG["index"]
+dpi = VIS_CONFIG["dpi"]
 fix_min_max_kwargs = VIS_CONFIG["fix_min_max_kwargs"]
 
 show_plots = VIS_CONFIG["show_plots"]
