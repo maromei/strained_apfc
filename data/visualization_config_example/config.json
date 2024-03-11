@@ -1,0 +1,33 @@
+{
+    "base_path": "",
+    "sim_name": "",
+    "compare_name": null,
+    "fig_save_path": "",
+    "index": -1,
+    "dpi": 150,
+    "fix_min_max_kargs": {
+        "displacement": null,
+        "stress": {"bin_nos": 1000, "pt_count_threshhold": 20},
+        "comp_phi_density": null,
+        "comp_n0": null,
+        "velocity": null
+    },
+    "show_plots": false,
+    "detect_defects": false,
+    "defect_radius_extension": null,
+    "defect_indeces": [1, 10],
+    "lin_fit_range": [1, 10],
+    "do_animation": {
+        "etas": false,
+        "phi_density": false,
+        "diff_phi_density": false,
+        "velocity": false,
+        "velocity_arrow": false
+    },
+    "anim_fps": 5,
+    "num_writes": null,
+    "stress_theo_radius": 40,
+    "do_stress_theo_comp": false,
+    "velocity_arrow_spacing": 4,
+    "velocity_arrow_cmap": "inferno"
+}
