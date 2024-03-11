@@ -73,6 +73,7 @@ directory = "tests/output/coverage"
 
 [tool.hatch.envs.default.scripts]
 fft-sim = "python src/strained_apfc/apfc-run-fft.py {args}"
+vis-sim = "python src/visualizations.py {args}"
 
 [tool.hatch.envs.default.env-vars]
 
