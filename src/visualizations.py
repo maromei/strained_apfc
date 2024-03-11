@@ -13,13 +13,6 @@ from mpl_toolkits.axes_grid1.inset_locator import (
     mark_inset
 )
 
-plt.rcParams.update({
-    "text.usetex": False,
-    "font.family": "Helvetica"
-})
-plt.rc("text.latex", preamble=r"\usepackage{bm}")
-
-
 import argparse
 import json
 from pathlib import Path
