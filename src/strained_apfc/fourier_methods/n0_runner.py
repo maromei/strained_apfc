@@ -589,7 +589,7 @@ class FFTN0Sim:
         return 2.0 * eta_sum
 
     def get_n0_lin_part(self) -> np.ndarray:
-        return self.lbd - self.A * self.laplace_op
+        return self.lbd  # - self.A * self.laplace_op
 
     def n0_routine(self) -> tuple[np.array, np.array]:
         """
