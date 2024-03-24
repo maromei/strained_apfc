@@ -885,7 +885,7 @@ class FFTHydroSolidLiquidAPFCSim:
         lapl = self.calc_velocity_real_space_laplacian()
         lapl *= (self.mu - self.mu_0) / (self.init_n0 * self.phi_s) * self.phi
 
-        non_lin = self.dt * (f_eta + advec + lapl)
+        non_lin = self.dt * np.fft.fft2(f_eta + advec + lapl)
 
         ###
 
