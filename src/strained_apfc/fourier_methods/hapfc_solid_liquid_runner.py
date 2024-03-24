@@ -618,10 +618,10 @@ class FFTHydroSolidLiquidAPFCSim:
             np.ndarray:
         """
 
-        deriv_x = gradient_periodic_BC(n0 * velocity[0], self.dx, axis=0)
-        deriv_y = gradient_periodic_BC(n0 * velocity[1], self.dx, axis=1)
+        n0_v = self.vec2d_component_wise_fft(velocity * n0)
+        n0_v *= self.grad_fft_op
 
-        return deriv_x + deriv_y
+        return n0_v[0] + n0_v[1]
 
     def B(self, n0: np.array) -> np.array:
         """
@@ -715,7 +715,7 @@ class FFTHydroSolidLiquidAPFCSim:
         n += 0.5 * (self.velocity[0] ** 2 + self.velocity[1] ** 2)
 
         n = self.laplace_op * np.fft.fft2(n)
-        n -= np.fft.fft2(self.get_additional_hydro_flow_term_n0(self.n0, self.velocity))
+        n -= self.get_additional_hydro_flow_term_n0(self.n0, self.velocity)
 
         denom = 1.0 - self.dt * self.laplace_op * lagr
         n_n0 = self.n0_hat + self.dt * n
