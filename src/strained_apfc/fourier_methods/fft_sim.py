@@ -11,6 +11,7 @@ from .base_runner import FFTBaseSim
 from .n0_runner import FFTN0Sim
 from .hapfc_runner import FFTHydroAPFCSim
 from .hapfc_simple_runner import FFTHydroSimpleAPFCSim
+from .hapfc_solid_liquid_runner import FFTHydroSolidLiquidAPFCSim
 
 from .parameter_sets import PARAM_SETS
 
@@ -290,6 +291,8 @@ def theta_thread(
             sim = FFTHydroAPFCSim(config, continue_sim)
         elif sim_type == "hydro_simple":
             sim = FFTHydroSimpleAPFCSim(config, continue_sim)
+        elif sim_type == "hydro_solid_liquid":
+            sim = FFTHydroSolidLiquidAPFCSim(config, continue_sim)
         else:
             sim = FFTBaseSim(config, continue_sim)
 

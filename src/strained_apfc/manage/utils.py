@@ -256,3 +256,27 @@ def read_vary_vals_from_dir(vary_dir: str, vary_val_key: str) -> np.ndarray[floa
     vary_vals = np.sort(vary_vals)
 
     return vary_vals
+
+
+def simulates_n0(sim_type: str) -> bool:
+    return sim_type in ["n0", "hydro", "hydro_simple", "hydro_solid_liquid"]
+
+
+def simulates_velocity(sim_type: str) -> bool:
+    return sim_type in ["hydro", "hydro_simple", "hydro_solid_liquid"]
+
+
+def print_start_sim_message(sim_name: str, config: dict) -> None:
+
+    print(f"Starting Simulation '{sim_name}'")
+    print("Config parameters are:\n")
+
+    max_key_len = 0
+    for key, val in config.items():
+        max_key_len = max(len(key), max_key_len)
+
+    for key, val in config.items():
+        key_str = f"{{:<{max_key_len}}}".format(key)
+        print(f"{key_str}: {val}")
+
+    print("")

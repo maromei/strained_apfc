@@ -1,6 +1,7 @@
 # %% Imports and Function Def
 
 import sys
+
 sys.path.insert(0, "src")
 
 import numpy as np
@@ -8,16 +9,18 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as manimation
 
-from mpl_toolkits.axes_grid1.inset_locator import (
-    InsetPosition,
-    mark_inset
-)
+from mpl_toolkits.axes_grid1.inset_locator import InsetPosition, mark_inset
 
 import argparse
 import json
 from pathlib import Path
 
-def ux_func(x: float, y: float, poisson_ratio: float, bx: float, offset: np.array=None) -> float:
+from strained_apfc.manage import utils as apfc_utils
+
+
+def ux_func(
+    x: float, y: float, poisson_ratio: float, bx: float, offset: np.array = None
+) -> float:
     """
     TODO
 
@@ -44,7 +47,9 @@ def ux_func(x: float, y: float, poisson_ratio: float, bx: float, offset: np.arra
     return bx / (2 * np.pi) * ret
 
 
-def uy_func(x: float, y: float, poisson_ratio: float, by: float, offset:np.array=None) -> float:
+def uy_func(
+    x: float, y: float, poisson_ratio: float, by: float, offset: np.array = None
+) -> float:
     """
     TODO
 
@@ -72,16 +77,10 @@ def uy_func(x: float, y: float, poisson_ratio: float, by: float, offset:np.array
     sum2 = x**2 - y**2
     sum2 /= 4 * (1 - poisson_ratio) * (x**2 + y**2)
 
-    return - by/(2 * np.pi) * (sum1 + sum2)
+    return -by / (2 * np.pi) * (sum1 + sum2)
 
 
-def density(
-    x: float,
-    y: float,
-    G: np.array,
-    etas: np.array,
-    u: np.array
-) -> np.array:
+def density(x: float, y: float, G: np.array, etas: np.array, u: np.array) -> np.array:
     """
     TODO
 
@@ -120,7 +119,7 @@ def density(
     return n
 
 
-def Q_op(arr: np.array, dr: float, G: np.array, axis: int, conj: bool=False) -> float:
+def Q_op(arr: np.array, dr: float, G: np.array, axis: int, conj: bool = False) -> float:
     """
     TODO
 
@@ -158,7 +157,7 @@ def G_op(arr: np.array, dr: float, G: np.array):
     grad_y, grad_x = np.gradient(arr, dr)
     grad2 = laplacian(arr, dr)
 
-    ret = 2 * complex(0,1) * (G[0] * grad_x + G[1] * grad_y)
+    ret = 2 * complex(0, 1) * (G[0] * grad_x + G[1] * grad_y)
 
     return grad2.astype(complex) + ret
 
@@ -226,19 +225,17 @@ def reconstruct_u(axis: int, m: int, l: int, etas: np.array, G: np.array) -> np.
 
     ang = lambda x: np.arctan2(np.imag(x), np.real(x))
 
-    numer = G[l,j] * ang(etas[m]) - G[m,j] * ang(etas[l])
-    denom = G[m,i] * G[l,j] - G[m,j] * G[l,i]
+    numer = G[l, j] * ang(etas[m]) - G[m, j] * ang(etas[l])
+    denom = G[m, i] * G[l, j] - G[m, j] * G[l, i]
 
     return numer / denom
+
 
 #%% Argparse
 
 parser = argparse.ArgumentParser(prog="Sim Visualisation")
 
-parser.add_argument(
-    "path",
-    help="Contains config.json"
-)
+parser.add_argument("path", help="Contains config.json")
 
 args = parser.parse_args()
 config_path = Path(args.path)
@@ -252,7 +249,7 @@ with open(config_path / "config.json") as f:
 BASE_PATH = VIS_CONFIG["base_path"]
 sim_name = VIS_CONFIG["sim_name"]
 
-compare_name: str|None = VIS_CONFIG["compare_name"]
+compare_name: str | None = VIS_CONFIG["compare_name"]
 
 fig_save_path = Path(VIS_CONFIG["fig_save_path"]) / sim_name
 
@@ -263,16 +260,22 @@ fix_min_max_kwargs = VIS_CONFIG["fix_min_max_kwargs"]
 show_plots = VIS_CONFIG["show_plots"]
 
 detect_defects = VIS_CONFIG["detect_defects"]
-defect_radius_extension: float = VIS_CONFIG["defect_radius_extension"] # can be None for no extension
-defect_indeces = range(VIS_CONFIG["defect_indeces"][0], VIS_CONFIG["defect_indeces"][1])  # can be None for all
-lin_fit_range = range(VIS_CONFIG["lin_fit_range"][0], VIS_CONFIG["lin_fit_range"][1]) # can be None for all
+defect_radius_extension: float = VIS_CONFIG[
+    "defect_radius_extension"
+]  # can be None for no extension
+defect_indeces = range(
+    VIS_CONFIG["defect_indeces"][0], VIS_CONFIG["defect_indeces"][1]
+)  # can be None for all
+lin_fit_range = range(
+    VIS_CONFIG["lin_fit_range"][0], VIS_CONFIG["lin_fit_range"][1]
+)  # can be None for all
 
 sim_path = f"{BASE_PATH}/{sim_name}"
 compare_path: str = f"{BASE_PATH}/{compare_name}"
 
 do_animation = VIS_CONFIG["do_animation"]
 anim_fps = VIS_CONFIG["anim_fps"]
-num_writes = VIS_CONFIG["num_writes"] # 85 # can be None to include all
+num_writes = VIS_CONFIG["num_writes"]  # 85 # can be None to include all
 
 stress_theo_radius = VIS_CONFIG["stress_theo_radius"]
 do_stress_theo_comp = VIS_CONFIG["do_stress_theo_comp"]
@@ -289,8 +292,9 @@ from strained_apfc.manage import read_write as rw
 
 from strained_apfc.calculations import defect_detection
 
+
 def calc_density(
-    etas: np.array, G: np.array, r: np.array, n0: Union[np.array, None]=None
+    etas: np.array, G: np.array, r: np.array, n0: Union[np.array, None] = None
 ) -> np.array:
 
     if n0 is None:
@@ -315,21 +319,20 @@ def calc_density(
 
     return n
 
-def get_fields(
-    sim_path:str, index:int, compare_path: Union[str, None]=None
-):
+
+def get_fields(sim_path: str, index: int, compare_path: Union[str, None] = None):
 
     config = utils.get_config(sim_path)
     eta_path = f"{sim_path}/eta_files/0.0000/"
 
     eta_count = len(config["G"])
-    include_n0 = config["simType"] in ["n0", "hydro", "hydro_simple"]
-    include_velocity = config["simType"] in ["hydro", "hydro_simple"]
+    include_n0 = apfc_utils.simulates_n0(config["simType"])
+    include_velocity = apfc_utils.simulates_velocity(config["simType"])
 
     x = np.linspace(-config["xlim"], config["xlim"], config["numPtsX"])
     xm, ym = np.meshgrid(x, x)
     r = np.array([xm, ym])
-    imag = complex(0,1)
+    imag = complex(0, 1)
     G = np.array(config["G"])
 
     etas = rw.read_all_etas_at_line(
@@ -350,7 +353,7 @@ def get_fields(
             rw.read_arr_at_line,
             f"{eta_path}/velocity.txt",
             index,
-            dtype=float
+            dtype=float,
         )
 
     split_etas = np.zeros(etas.shape, dtype=float)
@@ -371,9 +374,9 @@ def get_fields(
 
     dr = np.abs(np.diff(x)[0])
 
-    stress_xy = calc_stress(etas, G, dr, axes=[0,1])
-    stress_xx = calc_stress(etas, G, dr, axes=[0,0])
-    stress_yy = calc_stress(etas, G, dr, axes=[1,1])
+    stress_xy = calc_stress(etas, G, dr, axes=[0, 1])
+    stress_xx = calc_stress(etas, G, dr, axes=[0, 0])
+    stress_yy = calc_stress(etas, G, dr, axes=[1, 1])
 
     compare_diff = None
     compare_diff_density = None
@@ -384,7 +387,11 @@ def get_fields(
 
         compare_config = utils.get_config(compare_path)
         compare_eta_path = f"{compare_path}/eta_files/0.0000/"
-        compare_include_n0 = compare_config["simType"] in ["n0", "hydro", "hydro_simple"]
+        compare_include_n0 = compare_config["simType"] in [
+            "n0",
+            "hydro",
+            "hydro_simple",
+        ]
 
         compare_etas = rw.read_all_etas_at_line(
             compare_eta_path,
@@ -392,7 +399,7 @@ def get_fields(
             compare_config["numPtsX"],
             compare_config["numPtsY"],
             eta_count,
-            complex
+            complex,
         )
 
         compare_phi = np.zeros(etas[0].shape)
@@ -400,7 +407,7 @@ def get_fields(
             compare_phi += np.real(compare_etas[i] * np.conj(compare_etas[i]))
         compare_phi *= 2
 
-        compare_diff = (compare_phi - phi)**2
+        compare_diff = (compare_phi - phi) ** 2
 
         compare_diff_n0 = 0
         compare_density = 0
@@ -410,7 +417,7 @@ def get_fields(
                 f"{compare_eta_path}/n0.txt",
                 index,
                 compare_config["numPtsX"],
-                compare_config["numPtsY"]
+                compare_config["numPtsY"],
             )
 
             compare_diff_n0 = compare_n0 - n0
@@ -418,25 +425,56 @@ def get_fields(
             compare_diff_n0 = np.real(compare_diff_n0)
 
         compare_density = calc_density(
-            compare_etas, np.array(compare_config["G"]), r,
-            compare_n0 if include_n0 else None
+            compare_etas,
+            np.array(compare_config["G"]),
+            r,
+            compare_n0 if include_n0 else None,
         )
-        compare_diff_density = (compare_density - n)**2
+        compare_diff_density = (compare_density - n) ** 2
 
     ret = (
-        xm, ym, etas, phi, n, n0, velocity, ux, uy,
-        stress_xy, stress_xx, stress_yy,
-        compare_diff, compare_diff_density, compare_diff_n0,
-        include_n0, compare_include_n0, include_velocity
+        xm,
+        ym,
+        etas,
+        phi,
+        n,
+        n0,
+        velocity,
+        ux,
+        uy,
+        stress_xy,
+        stress_xx,
+        stress_yy,
+        compare_diff,
+        compare_diff_density,
+        compare_diff_n0,
+        include_n0,
+        compare_include_n0,
+        include_velocity,
     )
 
     return ret
 
+
 (
-    xm, ym, etas, phi, n, n0, velocity, ux, uy,
-    stress_xy, stress_xx, stress_yy,
-    compare_diff, compare_diff_density, compare_diff_n0,
-    include_n0, compare_include_n0, include_velocity
+    xm,
+    ym,
+    etas,
+    phi,
+    n,
+    n0,
+    velocity,
+    ux,
+    uy,
+    stress_xy,
+    stress_xx,
+    stress_yy,
+    compare_diff,
+    compare_diff_density,
+    compare_diff_n0,
+    include_n0,
+    compare_include_n0,
+    include_velocity,
 ) = get_fields(sim_path, index, compare_path)
 
 if detect_defects and include_n0:
@@ -446,8 +484,9 @@ if detect_defects and include_n0:
 
 # %% Plot function definitions
 
+
 def fix_min_max(
-    arr: np.array, bin_nos: int=100, pt_count_threshhold: int=10
+    arr: np.array, bin_nos: int = 100, pt_count_threshhold: int = 10
 ) -> tuple[float, float]:
     """
     Generates a min and max value for plotting the :code:`arr`, while ignoring
@@ -470,7 +509,6 @@ def fix_min_max(
         tuple[float, float]: The new min and max values.
     """
 
-
     hist, bin_edges = np.histogram(arr.flatten(), bin_nos)
 
     # The bin_edges have one value more than the hist array to include the last boundary.
@@ -487,9 +525,10 @@ def fix_min_max(
         last_true = i if i > last_true else last_true
 
     new_min = bin_edges[first_true]
-    new_max = bin_edges[last_true+1]
+    new_max = bin_edges[last_true + 1]
 
     return new_min, new_max
+
 
 def plot_etas_re_im(
     xm,
@@ -505,11 +544,11 @@ def plot_etas_re_im(
     cmap="coolwarm",
     fig_save_path=None,
     fig=None,
-    axs=None
+    axs=None,
 ):
 
     if fig is None or axs is None:
-        fig, axs = plt.subplots(2, 3, dpi = dpi)
+        fig, axs = plt.subplots(2, 3, dpi=dpi)
 
     eta_max = -1e10
     eta_min = 1e10
@@ -547,8 +586,10 @@ def plot_etas_re_im(
     pos = [
         axs[1][0].get_position().x0,
         axs[1][0].get_position().y0 - cbar_y0,
-        axs[1][-1].get_position().x0 + axs[1][-1].get_position().width - axs[1][0].get_position().x0,
-        cbar_height
+        axs[1][-1].get_position().x0
+        + axs[1][-1].get_position().width
+        - axs[1][0].get_position().x0,
+        cbar_height,
     ]
     cax = fig.add_axes(pos)
     cbar = plt.colorbar(cont, cax=cax, orientation="horizontal", ticks=ticks_cbar)
@@ -556,6 +597,7 @@ def plot_etas_re_im(
 
     if fig_save_path is not None:
         fig.savefig(f"{fig_save_path}__etas.png", bbox_inches="tight")
+
 
 def plot_stresses(
     xm,
@@ -574,7 +616,7 @@ def plot_stresses(
     fig_save_path=None,
     fix_min_max_kwargs=None,
     fig=None,
-    axs=None
+    axs=None,
 ):
 
     if fig or axs is None:
@@ -592,7 +634,9 @@ def plot_stresses(
         stress_min, stress_max = fix_min_max(np.array(stresses), **fix_min_max_kwargs)
 
     ticks_cbar = np.linspace(stress_min, stress_max, cbar_tics, endpoint=True)
-    ticks_plot = np.linspace(stress_min, stress_max, contourf_color_count, endpoint=True)
+    ticks_plot = np.linspace(
+        stress_min, stress_max, contourf_color_count, endpoint=True
+    )
 
     for ax, stress in zip(axs, stresses):
 
@@ -609,8 +653,10 @@ def plot_stresses(
     pos = [
         axs[0].get_position().x0,
         axs[0].get_position().y0 - cbar_y0,
-        axs[-1].get_position().x0 + axs[-1].get_position().width - axs[0].get_position().x0,
-        cbar_height
+        axs[-1].get_position().x0
+        + axs[-1].get_position().width
+        - axs[0].get_position().x0,
+        cbar_height,
     ]
     cax = fig.add_axes(pos)
     cbar = plt.colorbar(cont, cax=cax, orientation="horizontal", ticks=ticks_cbar)
@@ -618,6 +664,7 @@ def plot_stresses(
 
     if fig_save_path is not None:
         fig.savefig(f"{fig_save_path}__stress.png", bbox_inches="tight")
+
 
 def plot_displacement(
     xm,
@@ -635,7 +682,7 @@ def plot_displacement(
     fig_save_path=None,
     fix_min_max_kwargs=None,
     fig=None,
-    axs=None
+    axs=None,
 ):
 
     max_ = np.max(ux)
@@ -673,8 +720,10 @@ def plot_displacement(
     pos = [
         axs[0].get_position().x0,
         axs[0].get_position().y0 - cbar_y0,
-        axs[-1].get_position().x0 + axs[-1].get_position().width - axs[0].get_position().x0,
-        cbar_height
+        axs[-1].get_position().x0
+        + axs[-1].get_position().width
+        - axs[0].get_position().x0,
+        cbar_height,
     ]
     cax = fig.add_axes(pos)
     cbar = plt.colorbar(cont, cax=cax, orientation="horizontal", ticks=ticks_cbar)
@@ -682,6 +731,7 @@ def plot_displacement(
 
     if fig_save_path is not None:
         fig.savefig(f"{fig_save_path}__u.png", bbox_inches="tight")
+
 
 def plot_phi_and_density(
     xm,
@@ -698,11 +748,11 @@ def plot_phi_and_density(
     hspace=0.05,
     inset_size=20,
     inset_window_pos=[0.6, 0.6, 0.3, 0.3],
-    inset_offset=np.array([0,0]),
+    inset_offset=np.array([0, 0]),
     show_inset=True,
     fig_save_path=None,
     fig=None,
-    axs=None
+    axs=None,
 ):
 
     if fig is None or axs is None:
@@ -712,17 +762,25 @@ def plot_phi_and_density(
     plt.subplots_adjust(wspace=wspace, hspace=hspace)
 
     gen_conturf_plot(
-        xm, ym, phi, fig, ax1,
+        xm,
+        ym,
+        phi,
+        fig,
+        ax1,
         contourf_color_count=contourf_color_count,
         cbar_ticks=cbar_ticks,
         cmap=cmap,
         cbar_y0=cbar_y0,
-        cbar_height=cbar_height
+        cbar_height=cbar_height,
     )
     ax1.set_title("$\Phi$")
     if show_inset:
         plot_density_w_inset(
-            xm, ym, n, inset_size, offset=inset_offset,
+            xm,
+            ym,
+            n,
+            inset_size,
+            offset=inset_offset,
             contourf_color_count=contourf_color_count,
             cbar_ticks=cbar_ticks,
             cmap=cmap,
@@ -730,21 +788,26 @@ def plot_phi_and_density(
             cbar_height=cbar_height,
             ax=ax2,
             fig=fig,
-            inset_window_pos=inset_window_pos
+            inset_window_pos=inset_window_pos,
         )
     else:
         gen_conturf_plot(
-            xm, ym, n, fig, ax2,
+            xm,
+            ym,
+            n,
+            fig,
+            ax2,
             contourf_color_count=contourf_color_count,
             cbar_ticks=cbar_ticks,
             cmap=cmap,
             cbar_y0=cbar_y0,
-            cbar_height=cbar_height
+            cbar_height=cbar_height,
         )
     ax2.set_title("$n(r, u)$")
 
     if fig_save_path is not None:
         fig.savefig(f"{fig_save_path}__phi_density.png", bbox_inches="tight")
+
 
 def gen_conturf_plot(
     xm,
@@ -758,7 +821,7 @@ def gen_conturf_plot(
     cbar_y0=0.07,
     cbar_height=0.025,
     fix_min_max_kwargs=None,
-    save_name=None
+    save_name=None,
 ):
 
     min_ = np.min(arr)
@@ -784,13 +847,14 @@ def gen_conturf_plot(
         ax.get_position().x0,
         ax.get_position().y0 - cbar_y0,
         ax.get_position().width,
-        cbar_height
+        cbar_height,
     ]
     cax = fig.add_axes(pos)
 
     fig.colorbar(cont, cax=cax, orientation="horizontal", ticks=ticks_cbar)
     if save_name is not None:
         fig.savefig(save_name, bbox_inches="tight")
+
 
 def plot_density_w_inset(
     xm,
@@ -809,11 +873,15 @@ def plot_density_w_inset(
     ax=None,
     fig=None,
     inset_window_pos=[0.6, 0.6, 0.3, 0.3],
-    fig_save_path=None
+    fig_save_path=None,
 ):
 
-    xm_in_bounds = np.logical_and(xm[0,:] < offset[1]+size, xm[0,:] > offset[1]-size)
-    ym_in_bounds = np.logical_and(ym[:,0] < offset[0]+size, ym[:,0] > offset[0]-size)
+    xm_in_bounds = np.logical_and(
+        xm[0, :] < offset[1] + size, xm[0, :] > offset[1] - size
+    )
+    ym_in_bounds = np.logical_and(
+        ym[:, 0] < offset[0] + size, ym[:, 0] > offset[0] - size
+    )
 
     xm_inset = xm[np.ix_(xm_in_bounds, ym_in_bounds)]
     ym_inset = ym[np.ix_(xm_in_bounds, ym_in_bounds)]
@@ -839,13 +907,13 @@ def plot_density_w_inset(
 
     #####
 
-    ax_inset = plt.axes([0,0,1,1])
+    ax_inset = plt.axes([0, 0, 1, 1])
     inset_pos = InsetPosition(ax, inset_window_pos)
     ax_inset.set_axes_locator(inset_pos)
 
     # Mark the region corresponding to the inset axes on ax1 and draw lines
     # in grey linking the two axes.
-    mark_inset(ax, ax_inset, loc1=2, loc2=4, fc="none", ec='0')
+    mark_inset(ax, ax_inset, loc1=2, loc2=4, fc="none", ec="0")
 
     ax_inset.set_aspect("equal")
     ax_inset.set_xticklabels([])
@@ -858,13 +926,14 @@ def plot_density_w_inset(
         ax.get_position().x0,
         ax.get_position().y0 - cbar_y0,
         ax.get_position().width,
-        cbar_height
+        cbar_height,
     ]
     cax = fig.add_axes(pos)
     fig.colorbar(cont, cax=cax, orientation="horizontal", ticks=ticks_cbar)
 
     if fig_save_path is not None:
         fig.savefig(f"{fig_save_path}__density_w_inset.png", bbox_inches="tight")
+
 
 def plot_diff(
     xm,
@@ -880,18 +949,15 @@ def plot_diff(
     wspace=0.05,
     hspace=0.05,
     fig_save_path=None,
-    fig_file_name_suffix: str="",
+    fig_file_name_suffix: str = "",
     fig_titles: tuple[str] = None,
     fix_min_max_kwargs=None,
     fig=None,
-    axs=None
+    axs=None,
 ):
 
     if fig_titles is None:
-        fig_titles = (
-            "$|\Phi_d - \Phi|^2$",
-            "$|n_{0,d} - n_0|^2$"
-        )
+        fig_titles = ("$|\Phi_d - \Phi|^2$", "$|n_{0,d} - n_0|^2$")
 
     ax1 = ax2 = None
     if fig is None or axs is None:
@@ -900,7 +966,6 @@ def plot_diff(
             fig, axs = plt.subplots(1, 2, dpi=dpi)
         else:
             fig, axs = plt.subplots(1, 1, dpi=dpi)
-
 
     if diff_n0 is not None:
         ax1, ax2 = axs
@@ -911,30 +976,41 @@ def plot_diff(
     plt.subplots_adjust(wspace=wspace, hspace=hspace)
 
     gen_conturf_plot(
-        xm, ym, diff_etas, fig, ax1,
+        xm,
+        ym,
+        diff_etas,
+        fig,
+        ax1,
         contourf_color_count=contourf_color_count,
         cbar_ticks=cbar_ticks,
         cmap=cmap,
         cbar_y0=cbar_y0,
         cbar_height=cbar_height,
-        fix_min_max_kwargs=fix_min_max_kwargs
+        fix_min_max_kwargs=fix_min_max_kwargs,
     )
     ax1.set_title(fig_titles[0])
 
     if diff_n0 is not None:
         gen_conturf_plot(
-            xm, ym, diff_n0, fig, ax2,
+            xm,
+            ym,
+            diff_n0,
+            fig,
+            ax2,
             contourf_color_count=contourf_color_count,
             cbar_ticks=cbar_ticks,
             cmap=cmap,
             cbar_y0=cbar_y0,
             cbar_height=cbar_height,
-            fix_min_max_kwargs=fix_min_max_kwargs
+            fix_min_max_kwargs=fix_min_max_kwargs,
         )
         ax2.set_title(fig_titles[-1])
 
     if fig_save_path is not None:
-        fig.savefig(f"{fig_save_path}__comp{fig_file_name_suffix}.png", bbox_inches="tight")
+        fig.savefig(
+            f"{fig_save_path}__comp{fig_file_name_suffix}.png", bbox_inches="tight"
+        )
+
 
 def plot_velocity(
     xm,
@@ -951,7 +1027,7 @@ def plot_velocity(
     fig_save_path=None,
     fig=None,
     axs=None,
-    fix_min_max_kwargs=None
+    fix_min_max_kwargs=None,
 ):
 
     if fig is None or axs is None:
@@ -965,28 +1041,37 @@ def plot_velocity(
     ax_y.set_title("velocity y")
 
     gen_conturf_plot(
-        xm, ym, velocity[0], fig, ax_x,
+        xm,
+        ym,
+        velocity[0],
+        fig,
+        ax_x,
         contourf_color_count=contourf_color_count,
         cbar_ticks=cbar_ticks,
         cmap=cmap,
         cbar_y0=cbar_y0,
         cbar_height=cbar_height,
-        fix_min_max_kwargs=fix_min_max_kwargs
+        fix_min_max_kwargs=fix_min_max_kwargs,
     )
     gen_conturf_plot(
-        xm, ym, velocity[1], fig, ax_y,
+        xm,
+        ym,
+        velocity[1],
+        fig,
+        ax_y,
         contourf_color_count=contourf_color_count,
         cbar_ticks=cbar_ticks,
         cmap=cmap,
         cbar_y0=cbar_y0,
         cbar_height=cbar_height,
-        fix_min_max_kwargs=fix_min_max_kwargs
+        fix_min_max_kwargs=fix_min_max_kwargs,
     )
 
     plt.subplots_adjust(wspace=wspace, hspace=hspace)
 
     if fig_save_path is not None:
         fig.savefig(f"{fig_save_path}__velocity.png", bbox_inches="tight")
+
 
 def plot_velocity_arrow(
     xm,
@@ -1002,7 +1087,7 @@ def plot_velocity_arrow(
     axs=None,
     cbar_y0=0.07,
     cbar_height=0.025,
-    cbar_ticks=5
+    cbar_ticks=5,
 ):
 
     if fig is None or axs is None:
@@ -1016,8 +1101,8 @@ def plot_velocity_arrow(
 
     x = xm[::spacing, ::spacing]
     y = ym[::spacing, ::spacing]
-    vx = velocity[0,::spacing, ::spacing]
-    vy = velocity[1,::spacing, ::spacing]
+    vx = velocity[0, ::spacing, ::spacing]
+    vy = velocity[1, ::spacing, ::spacing]
 
     length = np.sqrt(vx**2 + vy**2)
     min_ = np.min(length)
@@ -1031,7 +1116,7 @@ def plot_velocity_arrow(
         axs.get_position().x0,
         axs.get_position().y0 - cbar_y0,
         axs.get_position().width,
-        cbar_height
+        cbar_height,
     ]
     cax = fig.add_axes(pos)
     fig.colorbar(quiver_plot, cax=cax, orientation="horizontal", ticks=ticks_cbar)
@@ -1041,11 +1126,11 @@ def plot_velocity_arrow(
     if fig_save_path is not None:
         fig.savefig(f"{fig_save_path}__velocity_arrow.png", bbox_inches="tight")
 
+
 # %% # Animation function definitions
 
-def animate_velocity(
-    writer, indeces, dpi, sim_path, compare_path, *args, **kwargs
-):
+
+def animate_velocity(writer, indeces, dpi, sim_path, compare_path, *args, **kwargs):
 
     fig, axs = plt.subplots(1, 2, dpi=dpi)
 
@@ -1056,10 +1141,24 @@ def animate_velocity(
         for i in indeces:
 
             (
-                xm, ym, etas, phi, n, n0, velocity, ux, uy,
-                stress_xy, stress_xx, stress_yy,
-                compare_diff, compare_diff_density, compare_diff_n0,
-                include_n0, compare_include_n0, include_velocity
+                xm,
+                ym,
+                etas,
+                phi,
+                n,
+                n0,
+                velocity,
+                ux,
+                uy,
+                stress_xy,
+                stress_xx,
+                stress_yy,
+                compare_diff,
+                compare_diff_density,
+                compare_diff_n0,
+                include_n0,
+                compare_include_n0,
+                include_velocity,
             ) = get_fields(sim_path, i, compare_path)
 
             plot_velocity(xm, ym, velocity, *args, **kwargs, fig=fig, axs=axs)
@@ -1075,9 +1174,8 @@ def animate_velocity(
 
     plt.close(fig)
 
-def animate_etas_re_im(
-    writer, indeces, dpi, sim_path, compare_path, *args, **kwargs
-):
+
+def animate_etas_re_im(writer, indeces, dpi, sim_path, compare_path, *args, **kwargs):
 
     fig, axs = plt.subplots(2, 3, dpi=dpi)
 
@@ -1088,10 +1186,24 @@ def animate_etas_re_im(
         for i in indeces:
 
             (
-                xm, ym, etas, phi, n, n0, velocity, ux, uy,
-                stress_xy, stress_xx, stress_yy,
-                compare_diff, compare_diff_density, compare_diff_n0,
-                include_n0, compare_include_n0, include_velocity
+                xm,
+                ym,
+                etas,
+                phi,
+                n,
+                n0,
+                velocity,
+                ux,
+                uy,
+                stress_xy,
+                stress_xx,
+                stress_yy,
+                compare_diff,
+                compare_diff_density,
+                compare_diff_n0,
+                include_n0,
+                compare_include_n0,
+                include_velocity,
             ) = get_fields(sim_path, i, compare_path)
 
             plot_etas_re_im(xm, ym, etas, *args, **kwargs, fig=fig, axs=axs)
@@ -1107,6 +1219,7 @@ def animate_etas_re_im(
             cbar.remove()
 
     plt.close(fig)
+
 
 def animate_phi_and_density(
     writer, indeces, dpi, sim_path, compare_path, *args, **kwargs
@@ -1124,16 +1237,27 @@ def animate_phi_and_density(
         for i in indeces:
 
             (
-                xm, ym, etas, phi, n, n0, velocity, ux, uy,
-                stress_xy, stress_xx, stress_yy,
-                compare_diff, compare_diff_density, compare_diff_n0,
-                include_n0, compare_include_n0, include_velocity
+                xm,
+                ym,
+                etas,
+                phi,
+                n,
+                n0,
+                velocity,
+                ux,
+                uy,
+                stress_xy,
+                stress_xx,
+                stress_yy,
+                compare_diff,
+                compare_diff_density,
+                compare_diff_n0,
+                include_n0,
+                compare_include_n0,
+                include_velocity,
             ) = get_fields(sim_path, i, compare_path)
 
-            plot_phi_and_density(
-                xm, ym, phi, n,
-                *args, **kwargs, fig=fig, axs=axs
-            )
+            plot_phi_and_density(xm, ym, phi, n, *args, **kwargs, fig=fig, axs=axs)
             title = f"$\\vspace{{-1em}}\\tau = {i*dt_per_write:.2f}\\vspace{{-1em}}$"
             plt.suptitle(title)
 
@@ -1148,6 +1272,7 @@ def animate_phi_and_density(
             cbar2.remove()
 
     plt.close(fig)
+
 
 def animate_velocity_arrow(
     writer, indeces, dpi, sim_path, compare_path, *args, **kwargs
@@ -1165,16 +1290,27 @@ def animate_velocity_arrow(
         for i in indeces:
 
             (
-                xm, ym, etas, phi, n, n0, velocity, ux, uy,
-                stress_xy, stress_xx, stress_yy,
-                compare_diff, compare_diff_density, compare_diff_n0,
-                include_n0, compare_include_n0, include_velocity
+                xm,
+                ym,
+                etas,
+                phi,
+                n,
+                n0,
+                velocity,
+                ux,
+                uy,
+                stress_xy,
+                stress_xx,
+                stress_yy,
+                compare_diff,
+                compare_diff_density,
+                compare_diff_n0,
+                include_n0,
+                compare_include_n0,
+                include_velocity,
             ) = get_fields(sim_path, i, compare_path)
 
-            plot_velocity_arrow(
-                xm, ym, velocity,
-                *args, **kwargs, fig=fig, axs=axs
-            )
+            plot_velocity_arrow(xm, ym, velocity, *args, **kwargs, fig=fig, axs=axs)
             title = f"$\\vspace{{-1em}}\\tau = {i*dt_per_write:.2f}\\vspace{{-1em}}$"
             plt.suptitle(title)
 
@@ -1185,6 +1321,7 @@ def animate_velocity_arrow(
             cbar1.remove()
 
     plt.close(fig)
+
 
 def animate_diff_phi_density(
     writer, indeces, dpi, sim_path, compare_path, *args, **kwargs
@@ -1199,17 +1336,35 @@ def animate_diff_phi_density(
         for i in indeces:
 
             (
-                xm, ym, etas, phi, n, n0, velocity, ux, uy,
-                stress_xy, stress_xx, stress_yy,
-                compare_diff, compare_diff_density, compare_diff_n0,
-                include_n0, compare_include_n0, include_velocity
+                xm,
+                ym,
+                etas,
+                phi,
+                n,
+                n0,
+                velocity,
+                ux,
+                uy,
+                stress_xy,
+                stress_xx,
+                stress_yy,
+                compare_diff,
+                compare_diff_density,
+                compare_diff_n0,
+                include_n0,
+                compare_include_n0,
+                include_velocity,
             ) = get_fields(sim_path, i, compare_path)
 
-
             plot_diff(
-                xm, ym, compare_diff,
+                xm,
+                ym,
+                compare_diff,
                 compare_diff_density,
-                *args, **kwargs, fig=fig, axs=axs
+                *args,
+                **kwargs,
+                fig=fig,
+                axs=axs,
             )
             fig.suptitle(f"$\\tau = {i*dt_per_write:.2f}$")
             writer.grab_frame()
@@ -1225,10 +1380,11 @@ def animate_diff_phi_density(
 
     plt.close(fig)
 
+
 # %% # Setup Animation
 
-FFMpegWriter = None #manimation.writers["ffmpeg"]
-writer = None #FFMpegWriter(fps=anim_fps)
+FFMpegWriter = None  # manimation.writers["ffmpeg"]
+writer = None  # FFMpegWriter(fps=anim_fps)
 
 config = utils.get_config(sim_path)
 
@@ -1243,110 +1399,155 @@ all_times = [i * dt_per_write for i in range(num_writes)]
 
 if do_animation["etas"]:
     animate_etas_re_im(
-        writer, list(range(num_writes)), dpi,
-        sim_path, compare_path,
-        fig_save_path=fig_save_path
+        writer,
+        list(range(num_writes)),
+        dpi,
+        sim_path,
+        compare_path,
+        fig_save_path=fig_save_path,
     )
 else:
     plot_etas_re_im(xm, ym, etas, dpi=dpi, fig_save_path=fig_save_path)
 
 plot_displacement(
-    xm, ym, ux, uy,
-    dpi=dpi, fig_save_path=fig_save_path,
-    fix_min_max_kwargs=fix_min_max_kwargs["displacement"]
+    xm,
+    ym,
+    ux,
+    uy,
+    dpi=dpi,
+    fig_save_path=fig_save_path,
+    fix_min_max_kwargs=fix_min_max_kwargs["displacement"],
 )
 
 if do_animation["phi_density"]:
     animate_phi_and_density(
-        writer, list(range(num_writes)), dpi,
-        sim_path, compare_path,
-        inset_size=40, inset_offset=[0,0], show_inset=False,
+        writer,
+        list(range(num_writes)),
+        dpi,
+        sim_path,
+        compare_path,
+        inset_size=40,
+        inset_offset=[0, 0],
+        show_inset=False,
         inset_window_pos=[0.55, 0.55, 0.4, 0.4],
-        wspace=0.2, fig_save_path=fig_save_path
+        wspace=0.2,
+        fig_save_path=fig_save_path,
     )
 else:
     plot_phi_and_density(
-        xm, ym, phi, n, dpi=dpi,
-        inset_size=40, inset_offset=[0,0], show_inset=False,
+        xm,
+        ym,
+        phi,
+        n,
+        dpi=dpi,
+        inset_size=40,
+        inset_offset=[0, 0],
+        show_inset=False,
         inset_window_pos=[0.55, 0.55, 0.4, 0.4],
-        wspace=0.2, fig_save_path=fig_save_path
+        wspace=0.2,
+        fig_save_path=fig_save_path,
     )
 
-#plot_density_w_inset(xm, ym, n, 10, offset=[0, 0], dpi= dpi)
+# plot_density_w_inset(xm, ym, n, 10, offset=[0, 0], dpi= dpi)
 plot_stresses(
-    xm, ym, stress_xy, stress_xx, stress_yy,
-    dpi=dpi, fig_save_path=fig_save_path,
-    fix_min_max_kwargs=fix_min_max_kwargs["stress"]
+    xm,
+    ym,
+    stress_xy,
+    stress_xx,
+    stress_yy,
+    dpi=dpi,
+    fig_save_path=fig_save_path,
+    fix_min_max_kwargs=fix_min_max_kwargs["stress"],
 )
 
 if include_n0:
     fig = plt.figure(dpi=dpi)
     ax = plt.subplot(111)
     ax.set_aspect("equal")
-    gen_conturf_plot(
-        xm, ym, n0, fig, ax,
-        save_name=f"{fig_save_path}__n0.png"
-    )
+    gen_conturf_plot(xm, ym, n0, fig, ax, save_name=f"{fig_save_path}__n0.png")
     ax.set_title("$n_0$")
 
 if include_velocity:
     if do_animation["velocity"]:
         animate_velocity(
-            writer, list(range(num_writes)), dpi,
-            sim_path, compare_path,
+            writer,
+            list(range(num_writes)),
+            dpi,
+            sim_path,
+            compare_path,
             fig_save_path=fig_save_path,
-            fix_min_max_kwargs=fix_min_max_kwargs["velocity"]
+            fix_min_max_kwargs=fix_min_max_kwargs["velocity"],
         )
     else:
         plot_velocity(
-            xm, ym, velocity, dpi=dpi, fig_save_path=fig_save_path,
-            fix_min_max_kwargs=fix_min_max_kwargs["velocity"]
+            xm,
+            ym,
+            velocity,
+            dpi=dpi,
+            fig_save_path=fig_save_path,
+            fix_min_max_kwargs=fix_min_max_kwargs["velocity"],
         )
 
     if do_animation["velocity_arrow"]:
         animate_velocity_arrow(
-            writer, list(range(num_writes)), dpi,
-            sim_path, compare_path,
+            writer,
+            list(range(num_writes)),
+            dpi,
+            sim_path,
+            compare_path,
             fig_save_path=fig_save_path,
             spacing=velocity_arrow_spacing,
-            cmap=velocity_arrow_cmap
+            cmap=velocity_arrow_cmap,
         )
     else:
         plot_velocity_arrow(
-            xm, ym, velocity, dpi=dpi, fig_save_path=fig_save_path,
+            xm,
+            ym,
+            velocity,
+            dpi=dpi,
+            fig_save_path=fig_save_path,
             spacing=velocity_arrow_spacing,
-            cmap=velocity_arrow_cmap
+            cmap=velocity_arrow_cmap,
         )
 
 if compare_name is not None:
 
     if do_animation["diff_phi_density"]:
         animate_diff_phi_density(
-            writer, list(range(num_writes)), dpi,
-            sim_path, compare_path,
+            writer,
+            list(range(num_writes)),
+            dpi,
+            sim_path,
+            compare_path,
             fig_save_path=fig_save_path,
             fig_file_name_suffix="phi_density",
             fig_titles=("$|\Phi_d - \Phi|^2$", "$|n_d - n|^2$"),
-            fix_min_max_kwargs=fix_min_max_kwargs["comp_phi_density"]
+            fix_min_max_kwargs=fix_min_max_kwargs["comp_phi_density"],
         )
     else:
         plot_diff(
-            xm, ym, compare_diff,
+            xm,
+            ym,
+            compare_diff,
             compare_diff_density,
-            dpi=dpi, fig_save_path=fig_save_path,
+            dpi=dpi,
+            fig_save_path=fig_save_path,
             fig_file_name_suffix="phi_density",
             fig_titles=("$|\Phi_d - \Phi|^2$", "$|n_d - n|^2$"),
-            fix_min_max_kwargs=fix_min_max_kwargs["comp_phi_density"]
+            fix_min_max_kwargs=fix_min_max_kwargs["comp_phi_density"],
         )
 
     if include_n0 and compare_include_n0:
         plot_diff(
-            xm, ym, compare_diff_n0,
+            xm,
+            ym,
+            compare_diff_n0,
             None,
-            dpi=dpi, fig_save_path=fig_save_path,
+            dpi=dpi,
+            fig_save_path=fig_save_path,
             fig_file_name_suffix="n0",
             fig_titles=("$|n_{0,d} - n_0|^2$", "$|n_{0,d} - n_0|^2$"),
-            fix_min_max_kwargs=fix_min_max_kwargs["comp_n0"]
+            fix_min_max_kwargs=fix_min_max_kwargs["comp_n0"],
         )
 
 if show_plots:
