@@ -641,6 +641,10 @@ class FFTN0Sim:
         self.etas = n_etas
         self.etas_hat = n_etas_fft
 
+    def run_one_step(self):
+
+        pass
+
     def equilibriate(self, timesteps):
 
         old_dt = self.dt
