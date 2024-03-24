@@ -589,7 +589,7 @@ class FFTN0Sim:
         return 2.0 * eta_sum
 
     def get_n0_lin_part(self) -> np.ndarray:
-        return self.lbd  # - self.A * self.laplace_op
+        return self.lbd - self.A * self.laplace_op
 
     def n0_routine(self) -> tuple[np.array, np.array]:
         """
@@ -640,10 +640,6 @@ class FFTN0Sim:
 
         self.etas = n_etas
         self.etas_hat = n_etas_fft
-
-    def run_one_step(self):
-
-        pass
 
     def equilibriate(self, timesteps):
 
