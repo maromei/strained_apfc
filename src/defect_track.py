@@ -1,13 +1,14 @@
 #%%
 
 import numpy as np
+import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 
 from strained_apfc.manage import utils
 from strained_apfc.manage import read_write as rw
 from strained_apfc.calculations import defect_detection
 
-sim_path = "/media/max/Storage/sim_saves/n0_gliding_n0_-0.03"
+sim_path = "/media/max/Storage/sim_saves/hsl_glide_climb_ll"
 
 defect_radius_extension = 10
 expected_number_of_defects = 2
@@ -16,10 +17,13 @@ filter_0 = False
 
 dpi = 250
 
+color_map_name = "viridis"
+
+#%%
 #######
 
 config = utils.get_config(sim_path)
-defect_indeces = range(1, 101)
+defect_indeces = range(1, 20)
 
 if defect_indeces is None:
     defect_indeces = range(int(config["numT"] / config["writeEvery"]) - 1)
@@ -58,15 +62,6 @@ for time_index, i in enumerate(defect_indeces):
     defects.append(defect_pos)
     time_indeces.append(time_index)
 
-fig, ax = plt.subplots(1, 1, dpi=dpi)
-
-ax.set_aspect("equal")
-ax.set_xlim([-config["xlim"], config["xlim"]])
-ax.set_ylim([-config["xlim"], config["xlim"]])
-
-for d in defects:
-    ax.scatter(d[:, 0], d[:, 1])
-
 dt = config["writeEvery"] * config["dt"]
 
 distances = []
@@ -94,8 +89,38 @@ velocities = np.array(velocities)
 times = np.array(time_indeces[:-1]) * dt
 times_full = np.array(time_indeces) * dt
 
+#%%
+
+#############
+### PLOTS ###
+#############
+
+cmap = cm.get_cmap(color_map_name)
+
+### Positions ###
+
 fig, ax = plt.subplots(1, 1, dpi=dpi)
-ax.scatter(distances, velocities)
+
+ax.set_aspect("equal")
+ax.set_xlim([-config["xlim"], config["xlim"]])
+ax.set_ylim([-config["xlim"], config["xlim"]])
+
+defects_np = np.array(defects)
+
+colors = np.arange(defects_np.shape[0]) / defects_np.shape[0]
+colors = np.array([c for c in colors for _ in (0, 1)])
+
+ax.scatter(defects_np[:, :, 0], defects_np[:, :, 1], c=colors, cmap=cmap)
+
+# for i, d in enumerate(defects):
+#    color = time_indeces[i] / len(time_indeces)
+#    print(color)
+#    ax.scatter(d[:, 0], d[:, 1], c=[color, color], cmap=cmap)
+
+### Distances ###
+
+fig, ax = plt.subplots(1, 1, dpi=dpi)
+ax.scatter(distances[1:], velocities)
 ax.set_xlabel("distances")
 ax.set_ylabel("velocities")
 
