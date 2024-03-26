@@ -1,6 +1,7 @@
 import numpy as np
 from calculations import initialize, params
 from manage import read_write as rw
+from manage import utils as apfc_utils
 import warnings
 
 
@@ -74,6 +75,9 @@ class FFTN0Sim:
                 If :code:`True`, it will read the last values
                 from a file.
         """
+
+        print("\n")
+        apfc_utils.print_start_sim_message("APFC n0", config)
 
         #########################
         ## VARIABLE ASSIGNMENT ##

@@ -2,6 +2,7 @@ import numpy as np
 import warnings
 from calculations import initialize, params
 from manage import read_write as rw
+from manage import utils as apfc_utils
 from calculations.operator import gradient_periodic_BC
 
 
@@ -91,6 +92,9 @@ class FFTHydroAPFCSim:
                 If :code:`True`, it will read the last values
                 from a file.
         """
+
+        print("\n")
+        apfc_utils.print_start_sim_message("Hydro", config)
 
         #########################
         ## VARIABLE ASSIGNMENT ##
