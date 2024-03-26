@@ -8,22 +8,22 @@ from strained_apfc.manage import utils
 from strained_apfc.manage import read_write as rw
 from strained_apfc.calculations import defect_detection
 
-sim_path = "/media/max/Storage/sim_saves/hsl_glide_climb_ll"
+sim_path = ""
 
 defect_radius_extension = 10
 expected_number_of_defects = 2
 sigma_mult = 10
 filter_0 = False
 
+defect_indeces = range(1, 20)
+
 dpi = 250
+color_map_name = "plasma"
 
-color_map_name = "viridis"
-
-#%%
+#%% Calculations
 #######
 
 config = utils.get_config(sim_path)
-defect_indeces = range(1, 20)
 
 if defect_indeces is None:
     defect_indeces = range(int(config["numT"] / config["writeEvery"]) - 1)
@@ -44,7 +44,7 @@ for time_index, i in enumerate(defect_indeces):
     r = np.array([xm, ym])
 
     etas = rw.read_all_etas_at_line(
-        eta_path, time_index, config["numPtsX"], config["numPtsY"], eta_count, complex
+        eta_path, i, config["numPtsX"], config["numPtsY"], eta_count, complex
     )
 
     phi = np.zeros(etas[0].shape)
@@ -89,7 +89,7 @@ velocities = np.array(velocities)
 times = np.array(time_indeces[:-1]) * dt
 times_full = np.array(time_indeces) * dt
 
-#%%
+#%% Plots
 
 #############
 ### PLOTS ###
