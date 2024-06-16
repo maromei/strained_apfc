@@ -9,6 +9,7 @@ the displacement for a given :ref:`burgers vector <ch:burgers_vector>`.
 """
 
 import numpy as np
+from scipy import interpolate as scipy_interpol
 
 from manage import read_write as rw
 
@@ -343,6 +344,26 @@ def init_n0_height(
 ####################
 
 
+def line_defect_x_center(x, y, poisson_ratio, bx):
+
+    denom = 2 * (1 - poisson_ratio) * (x**2 + y**2)
+    ret = np.arctan2(y, x) + x * y / denom
+
+    return bx / (2 * np.pi) * ret
+
+
+def line_defect_y_center(x, y, poisson_ratio, by):
+
+    sum1 = 1 - 2 * poisson_ratio
+    sum1 /= 4 * (1 - poisson_ratio)
+    sum1 *= np.log(x**2 + y**2)
+
+    sum2 = x**2 - y**2
+    sum2 /= 4 * (1 - poisson_ratio) * (x**2 + y**2)
+
+    return -by / (2 * np.pi) * (sum1 + sum2)
+
+
 def line_defect_x(
     x: float, y: float, poisson_ratio: float, bx: float, offset: np.array = None
 ) -> float:
@@ -361,16 +382,29 @@ def line_defect_x(
         float: x component of displacement for an edge dislocation
     """
 
-    if offset is None:
-        offset = np.array([0, 0])
+    xo = x.copy()
+    yo = y.copy()
 
-    x = x - offset[0]
-    y = y - offset[1]
+    dx = np.abs(xo[1, 2] - xo[1, 1])
+    dy = np.abs(yo[2, 1] - yo[1, 1])
 
-    denom = 2 * (1 - poisson_ratio) * (x**2 + y**2)
-    ret = np.arctan2(y, x) + x * y / denom
+    nx = np.arange(np.min(xo) - offset[0], np.max(xo) - offset[0] + dx, dx)
+    ny = np.arange(np.min(yo) - offset[1], np.max(yo) - offset[1] + dy, dy)
 
-    return bx / (2 * np.pi) * ret
+    xm, ym = np.meshgrid(nx, ny)
+    u = line_defect_x_center(xm, ym, poisson_ratio, bx)
+
+    xm += offset[0]
+    ym += offset[1]
+
+    points = np.array((xm.ravel(), ym.ravel())).T
+    values = u.ravel()
+
+    grid = (x, y)
+
+    intep = scipy_interpol.griddata(points, values, grid, method="nearest")
+
+    return intep
 
 
 def line_defect_y(
@@ -391,17 +425,26 @@ def line_defect_y(
         float: y component of displacement for an edge dislocation
     """
 
-    if offset is None:
-        offset = np.array([0, 0])
+    xo = x.copy()
+    yo = y.copy()
 
-    x = x - offset[0]
-    y = y - offset[1]
+    dx = np.abs(xo[1, 2] - xo[1, 1])
+    dy = np.abs(yo[2, 1] - yo[1, 1])
 
-    sum1 = 1 - 2 * poisson_ratio
-    sum1 /= 4 * (1 - poisson_ratio)
-    sum1 *= np.log(x**2 + y**2)
+    nx = np.arange(np.min(xo) - offset[0], np.max(xo) - offset[0] + dx, dx)
+    ny = np.arange(np.min(yo) - offset[1], np.max(yo) - offset[1] + dy, dy)
 
-    sum2 = x**2 - y**2
-    sum2 /= 4 * (1 - poisson_ratio) * (x**2 + y**2)
+    xm, ym = np.meshgrid(nx, ny)
+    u = line_defect_y_center(xm, ym, poisson_ratio, by)
 
-    return -by / (2 * np.pi) * (sum1 + sum2)
+    xm += offset[0]
+    ym += offset[1]
+
+    points = np.array((xm.ravel(), ym.ravel())).T
+    values = u.ravel()
+
+    grid = (x, y)
+
+    intep = scipy_interpol.griddata(points, values, grid, method="nearest")
+
+    return intep
