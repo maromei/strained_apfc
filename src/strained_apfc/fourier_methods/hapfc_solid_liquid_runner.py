@@ -126,6 +126,8 @@ class FFTHydroSolidLiquidAPFCSim:
         self.eq_dt = config.get("eqTimeStep", self.dt)
         self.velocity_dt = config.get("velocity_dt", self.velocity_dt)
 
+        self.velocity_dt = self.dt
+
         self.G = np.array(config["G"])
         self.eta_count = self.G.shape[0]
 

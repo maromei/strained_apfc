@@ -8,14 +8,14 @@ from strained_apfc.manage import utils
 from strained_apfc.manage import read_write as rw
 from strained_apfc.calculations import defect_detection
 
-sim_path = ""
+sim_path = "/media/max/Storage/sim_saves/hsl_st1-1_glide_climb_ll"
 
 defect_radius_extension = 10
 expected_number_of_defects = 2
 sigma_mult = 10
 filter_0 = False
 
-defect_indeces = range(1, 20)
+defect_indeces = [1, None]
 
 dpi = 250
 color_map_name = "plasma"
@@ -25,8 +25,14 @@ color_map_name = "plasma"
 
 config = utils.get_config(sim_path)
 
-if defect_indeces is None:
-    defect_indeces = range(int(config["numT"] / config["writeEvery"]) - 1)
+if defect_indeces[0] is None:
+    defect_indeces[0] = 0
+
+if defect_indeces[1] is None:
+    lines = rw.count_lines(f"{sim_path}/eta_files/0.0000/out_0.txt")
+    defect_indeces[1] = lines
+
+defect_indeces = range(*defect_indeces)
 
 defects = []
 time_indeces = []
